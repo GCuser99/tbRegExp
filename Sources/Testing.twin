@@ -1,0 +1,11 @@
+Module MyModule
+
+Sub test_unicode()
+    Dim re As New RegExp
+    re.Pattern = "Hié"
+    Debug.Print re.Test("1234Hié1235")
+    re.Pattern = "文言文与"
+    Debug.Print re.Test("1234文言文与1235")
+End Sub
+
+End Module
