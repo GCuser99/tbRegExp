@@ -97,7 +97,7 @@ re.DotAll = True          ' now '.' spans line breaks
 
 **`Split` — split a string on a pattern.** A method `VBScript.RegExp` never provided:
 
-```vb
+```vba
 re.Pattern = "\\s\*,\\s\*"
 Dim parts As Collection
 Set parts = re.Split("a , b,c ,  d")   ' -> "a","b","c","d"
@@ -105,12 +105,19 @@ Set parts = re.Split("a , b,c ,  d")   ' -> "a","b","c","d"
 
 **Named capture groups** — `(?<name>...)`, retrievable by name from `SubMatches`:
 
-```vb
+```vba
 re.Pattern = "(?<year>\\d{4})-(?<month>\\d{2})"
 Dim m As Match
 Set m = re.Execute("2026-07").Item(0)
 Debug.Print m.SubMatches("year"), m.SubMatches("month")   ' by name
 Debug.Print m.SubMatches(0),      m.SubMatches(1)          ' still by index too
+```
+
+**Named references in Replace** — use $<name> in the replacement string, not just $1:
+
+```vba
+re.Pattern = "(?<y>\d{4})-(?<m>\d{2})"
+re.Replace("2026-07", "$<m>/$<y>")   ' -> 07/2026
 ```
 
 **Lookbehind** — `(?<=...)` and `(?<!...)`, in addition to lookahead:
