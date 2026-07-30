@@ -2,7 +2,7 @@ Module AutoSFDI
 
     Sub prep_for_SFDI()
         Dim tbFolderPath As String
-        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbFileSysTools\Single-File-Drop-in\TestSFDI")
+        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Single-File-Drop-in\Project")
         Dim tbSourcesPath As String
         tbSourcesPath = BuildPath(tbFolderPath, "Sources")
         
@@ -55,14 +55,14 @@ Module AutoSFDI
         Next p
         
         ReDim Preserve o(0 To j)
-        ArrayToTextFile o, BuildPath (tbFolderPath, "Sources\tbFileSysTools.twin"), encoding:=enc, lineEnding:=le
+        ArrayToTextFile o, BuildPath (tbFolderPath, "Sources\tbRegExp.twin"), encoding:=enc, lineEnding:=le
         
         ' Pack the modfied source into a .twinproj file
         Dim exePath As String, outProjPath As String
         exePath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbImportExport\Build\ImpExp.exe")
             
-        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbFileSysTools\Single-File-Drop-in\TestSFDI")
-        outProjPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbFileSysTools\Single-File-Drop-in\TestSFDI.twinproj")
+        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Single-File-Drop-in\Project")
+        outProjPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Single-File-Drop-in\tbRegExp.twinproj")
             
         DeleteFile outProjPath, ignoreMissing:=True
             
@@ -79,8 +79,8 @@ Module AutoSFDI
         Dim tbFolderPath As String
         
         exePath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbImportExport\Build\ImpExp.exe")
-        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbFileSysTools\Single-File-Drop-in\Project")
-        inProjPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbFileSysTools\Single-File-Drop-in\tbRegExp.twinproj")
+        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Single-File-Drop-in\Project")
+        inProjPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Single-File-Drop-in\tbRegExp.twinproj")
         
         DeleteFolder tbFolderPath, ignoreMissing:=True
         

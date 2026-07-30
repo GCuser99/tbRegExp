@@ -8,7 +8,7 @@ Module AutoDLL
         
         exePath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbImportExport\Build\ImpExp.exe")
         tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\ActiveXDLL\Project")
-        inProjPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\tbRegExp.twinproj")
+        inProjPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\ActiveXDLL\tbRegExp.twinproj")
         
         DeleteFolder tbFolderPath, ignoreMissing:=True
         

@@ -8,7 +8,7 @@ Sub test_unicode()
     Debug.Print re.Test("1234文言文与1235")
     Dim mc As MatchCollection, m As Match
     For Each m In re.Execute("1234文言文与1235")
-        
+        Debug.Print m.Value
     Next
 End Sub
 

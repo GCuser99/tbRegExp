@@ -11,6 +11,8 @@
 '
 ' Array-backed SubMatches (mVals/mKeys, not a Collection); the
 '   enumeration Collection is built lazily for For Each only.
+'
+' Uses Internal_ prefix for Friend procedures; tB leaks Friend across the package boundary
 ' ==========================================================================
 [COMCreatable(False)]
 [PredeclaredId(True)]
@@ -148,9 +150,9 @@ Private Class RegExp
         Dim oMatches As MatchCollection
         Dim oMatch As Match
         Dim i As Long
-        Dim submatchString As String
+        'Dim submatchString As String
         Dim matchStart As Long, matchLength As Long
-        Dim colNamedKeyMap As New Collection
+        'Dim colNamedKeyMap As New Collection
         
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
@@ -163,56 +165,57 @@ Private Class RegExp
         GetNamedCapturesInfo colNames, colEntryPoints
         
         Set oMatches = New MatchCollection
-        
+
         Do While StaticRegex.MatchNext(matcherState, regex, sourceString)
-            
+
             With matcherState.captures
-                Set oMatch = New Match
+                Dim mValue As String, mFirst As Long, mLen As Long
                 matchStart = .entireMatch.start
                 matchLength = .entireMatch.Length
                 If matchStart > 0 Then
-                    oMatch.Value = Mid$(sourceString, matchStart, matchLength)
-                    oMatch.FirstIndex = matchStart - 1 'to match VBScript_RegExp_55 zero-based
-                    oMatch.Length = matchLength
+                    mValue = Mid$(sourceString, matchStart, matchLength)
+                    mFirst = matchStart - 1          ' zero-based, matches VBScript_RegExp_55
+                    mLen = matchLength
                 Else
-                    oMatch.Value = vbNullString
+                    mValue = vbNullString
+                    mFirst = 0
+                    mLen = 0
                 End If
-                
-                If .nNumberedCaptures > 0 Then
-                    Dim keymap() As String
-                    ReDim keymap(1 To .nNumberedCaptures)
-                
+
+                Dim subVals() As String, subKeys() As String
+                Dim n As Long
+                n = .nNumberedCaptures
+
+                If n > 0 Then
+                    ReDim subVals(0 To n - 1)
+                    ReDim subKeys(0 To n - 1)       ' vbNullString by default = unnamed
+
+                    ' name the slots (single pass over named captures)
                     If .nNamedCaptures > 0 Then
-                        'build a key-position map into the numbered capture collection
                         Dim referenced As Long
                         For i = 1 To colNames.Count
                             referenced = .namedCaptures(colEntryPoints(i))
-                            If referenced <> -1 Then keymap(referenced) = colNames(i)
+                            If referenced <> -1 Then subKeys(referenced - 1) = colNames(i)
                         Next i
                     End If
-                
-                    'add captures to submatch collection - note that numbered captures includes any named captures too
-                    For i = 0 To .nNumberedCaptures - 1
+
+                    ' fill the values (single pass over numbered captures)
+                    For i = 0 To n - 1
                         matchStart = .numberedCaptures(i).start
                         matchLength = .numberedCaptures(i).Length
                         If matchStart > 0 Then
-                            submatchString = Mid$(sourceString, matchStart, matchLength)
+                            subVals(i) = Mid$(sourceString, matchStart, matchLength)
                         Else
-                            submatchString = vbNullString
-                        End If
-                        If keymap(i + 1) = vbNullString Then
-                            oMatch.AddSubMatch submatchString
-                        Else
-                            'we have a named capture - use name as submatch key
-                            oMatch.AddSubMatch submatchString, keymap(i + 1)
+                            subVals(i) = vbNullString
                         End If
                     Next i
                 End If
 
-                oMatches.Add oMatch
+                Set oMatch = New Match
+                oMatch.Internal_Init mValue, mFirst, mLen, subVals, subKeys, n
+                oMatches.Internal_Add oMatch
             End With
         Loop
-
         Set Execute = oMatches
     End Function
     
@@ -317,7 +320,7 @@ Private Class Match
 
     [Description("Returns the SubMatches collection of submatch (Group) strings.")]
     Public Property Get SubMatches() As SubMatches
-        'Group-less matches share one empty instance
+        ' group-less matches share one empty instance (no per-match allocation)
         If oSubMatches Is Nothing Then
             Set SubMatches = modRegexShared.EmptySubMatches
         Else
@@ -325,37 +328,36 @@ Private Class Match
         End If
     End Property
 
-    ' Create the per-match SubMatches only when there's something to add
-    [Hidden(True)]
-    Friend Sub AddSubMatch(ByVal val As String, Optional ByVal key As String)
-        If oSubMatches Is Nothing Then Set oSubMatches = New SubMatches
-        oSubMatches.Add val, key
-    End Sub
-    
     [Description("Returns the entire matched string")]
     [DefaultMember]
     Public Property Get Value() As String
         Value = mValue
     End Property
-    Friend Property Let Value(ByVal pValue As String)
-        mValue = pValue
-    End Property
-    
+
     [Description("Returns the character index position associated with the start of the match string. Note that the index is zero-based.")]
     Public Property Get FirstIndex() As Long
         FirstIndex = mFirstIndex
     End Property
-    Friend Property Let FirstIndex(ByVal pFirstIndex As Long)
-        mFirstIndex = pFirstIndex
-    End Property
-    
+
     [Description("Returns the character length of the match string.")]
     Public Property Get Length() As Long
         Length = mLength
     End Property
-    Friend Property Let Length(ByVal pLength As Long)
-        mLength = pLength
-    End Property
+
+    ' Internal_ prefix: package-internal construction seam. tB leaks Friend across the
+    ' package boundary, so this flags it as not-for-consumers. Single channel for building
+    ' a Match: scalars in one shot, submatches moved in as arrays (no per-submatch calls,
+    ' no Collection). subCount = 0 keeps the shared-empty SubMatches (group-less fast path).
+    Friend Sub Internal_Init(ByVal matchValue As String, ByVal firstIndex As Long, ByVal length As Long, _
+                             ByRef subVals() As String, ByRef subKeys() As String, ByVal subCount As Long)
+        mValue = matchValue
+        mFirstIndex = firstIndex
+        mLength = length
+        If subCount > 0 Then
+            Set oSubMatches = New SubMatches
+            oSubMatches.Internal_SetData subVals, subKeys, subCount
+        End If
+    End Sub
     
     Private Sub Class_Terminate()
         Set oSubMatches = Nothing
@@ -371,8 +373,12 @@ Private Class MatchCollection
     Option Explicit
 
     Private colMatches As Collection
-    
+    /*
     Friend Sub Add(obj As Match)
+        colMatches.Add obj
+    End Sub
+    */
+    Friend Sub Internal_Add(obj As Match)
         colMatches.Add obj
     End Sub
     
@@ -422,16 +428,14 @@ Private Class SubMatches
     Private mCap As Long
     Private oEnumColl As Collection ' lazy, For Each only
 
-    Friend Sub Add(ByVal val As String, Optional ByVal key As String)
-        If mCount = mCap Then
-            If mCap = 0 Then mCap = 4 Else mCap = mCap + mCap \ 2
-            ReDim Preserve mVals(0 To mCap - 1)
-            ReDim Preserve mKeys(0 To mCap - 1)
-        End If
-        mVals(mCount) = val
-        mKeys(mCount) = key
-        mCount = mCount + 1
-        Set oEnumColl = Nothing      ' invalidate any cached enumeration source
+    ' Internal_ prefix: package-internal seam (tB leaks Friend across the package boundary).
+    ' Bulk-assign the backing arrays in one operation instead of N Add calls.
+    Friend Sub Internal_SetData(ByRef vals() As String, ByRef keys() As String, ByVal count As Long)
+        mVals = vals            ' single bulk array assignment
+        mKeys = keys
+        mCount = count
+        mCap = count            ' arrays are sized exactly; growth path unused here
+        Set oEnumColl = Nothing
     End Sub
 
     [Description("Returns the number of SubMatch objects found in the source string.")]

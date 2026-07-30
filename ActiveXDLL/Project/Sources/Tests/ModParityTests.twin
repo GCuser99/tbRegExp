@@ -188,6 +188,13 @@ Module modParity
         re.Pattern = "a(b)c"                    ' valid
         Eq "valid pattern IsValid", re.IsValid, True
         Eq "valid pattern no LastError", (Len(re.LastError) = 0), True
+        
+        ' $<name> substitution in Replace
+        Set re = New RegExp
+        re.Global = True
+        re.Pattern = "(?<m>\w{3})-(?<d>\d{1,2})-(?<y>\d{4})"
+        Eq "Replace $<name>", re.Replace("Jul-4-1776", "$<y>/$<m>/$<d>"), "1776/Jul/4"
+        Eq "Replace $<name> + $n mix", re.Replace("Jul-4-1776", "$<y> ($1)"), "1776 (Jul)"
     End Sub
 
     ' ======================================================================
