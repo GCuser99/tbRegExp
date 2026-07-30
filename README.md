@@ -177,8 +177,7 @@ rather than allowed to run away). **Where it doesn't:** the common case of ancho
 patterns and extraction over normal-sized text, which is at or near parity.
 
 If raw throughput on huge inputs with complex patterns is your priority and a runtime
-dependency is acceptable, a wrapper around a native engine (e.g. .NET's) will beat a pure-tB
-matcher — that is the trade this library deliberately does *not* make, in favour of being
+dependency is acceptable, a [wrapper around a native engine such as .NET's](https://github.com/6DiegoDiego9/VBA-dotNET-regex) will beat a pure-tB matcher — that is the trade this library deliberately does *not* make, in favour of being
 self-contained and portable.
 
 \---
