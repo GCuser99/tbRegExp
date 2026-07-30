@@ -1,0 +1,81 @@
+{
+	"configuration.inherits": "Defaults",
+	"project.appTitle": "tbRegExp",
+	"project.buildPath": "${SourcePath}\\Build\\${ProjectName}_${Architecture}.${FileExtension}",
+	"project.buildType": "Standard EXE",
+	"project.description": "Regular Expression Engine - Modern replacement for VBScript.RegExp",
+	"project.exportPathIsV2": true,
+	"project.id": "{EAEAEAEA-EAEA-EAEA-EAEA-EAEAEAEAEA00}",
+	"project.name": "tbRegExp",
+	"project.optionExplicit": true,
+	"project.references": [
+		{
+			"hasBeenSplit": true,
+			"id": "{F50B82D0-DCAB-43FE-9631-11959D4A4728}",
+			"isCompilerPackage": true,
+			"licence": "MIT",
+			"name": "[COMPILER PACKAGE] twinBASIC - VB Compatibility Package (Forms)",
+			"path32": "/Packages/WindowsControlsPackage",
+			"path64": "/Packages/WindowsControlsPackage",
+			"publishedDate": "09-FEB-2022",
+			"publishedTime": "15:48:54",
+			"publisher": "TWINBASIC-COMPILER",
+			"symbolId": "VB",
+			"versionBuild": 0,
+			"versionMajor": 0,
+			"versionMinor": 0,
+			"versionRevision": 31
+		},
+		{
+			"id": "{00020430-0000-0000-C000-000000000046}",
+			"lcid": 0,
+			"name": "OLE Automation",
+			"path32": "C:\\Windows\\SysWow64\\stdole2.tlb",
+			"path64": "C:\\Windows\\System32\\stdole2.tlb",
+			"symbolId": "stdole",
+			"versionMajor": 2,
+			"versionMinor": 0
+		},
+		{
+			"autoCtlExt": true,
+			"id": "{9847A10D-8987-44B2-8B87-EA77DEF7F1D9}",
+			"isCompilerPackage": true,
+			"licence": "MIT",
+			"name": "[COMPILER PACKAGE] twinBASIC - Unit Testing Package",
+			"path32": "",
+			"path64": "",
+			"publisher": "TWINBASIC-COMPILER",
+			"symbolId": "Assert",
+			"versionBuild": 0,
+			"versionMajor": 0,
+			"versionMinor": 0,
+			"versionRevision": 24
+		},
+		{
+			"autoCtlExt": true,
+			"id": "{1901ECFE-40F4-46F8-8160-B9AD2E5E306F}",
+			"licence": "MIT",
+			"name": "[IMPORTED] File System Tools - Modern Replacement for FSO",
+			"path32": "/Packages/tbFileSysTools",
+			"path64": "/Packages/tbFileSysTools",
+			"publishedDate": "29-JUL-2026",
+			"publishedTime": "14:07:35",
+			"publisher": "GCuser99",
+			"symbolId": "tbFileSysTools",
+			"versionBuild": "0",
+			"versionMajor": "1",
+			"versionMinor": "1",
+			"versionRevision": "0"
+		}
+	],
+	"project.settingsVersion": 1,
+	"project.startupObject": "Form1",
+	"project.warnings": {
+		"errors": [],
+		"hints": [],
+		"ignored": [],
+		"info": [],
+		"warnings": []
+	},
+	"runtime.useUnicodeStandardLibrary": true
+}

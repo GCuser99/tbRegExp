@@ -1,0 +1,28 @@
+Module AutoDLL
+
+    Sub UnpackTwinProj()
+        ' Requires ImpExp console app (https://github.com/GCuser99/tbImportExport)
+        Dim exePath As String
+        Dim inProjPath As String
+        Dim tbFolderPath As String
+        
+        exePath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbImportExport\Build\ImpExp.exe")
+        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\ActiveXDLL\Project")
+        inProjPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\tbRegExp.twinproj")
+        
+        DeleteFolder tbFolderPath, ignoreMissing:=True
+        
+        tbFolderPath = """" & tbFolderPath & """"
+        inProjPath = """" & inProjPath & """"
+        exePath = """" & exePath & """"
+        
+        ' Run unpack
+        Shell exePath & " unpack " & inProjPath & " " & tbFolderPath, vbNormalFocus
+        
+        ' .meta could have personal info - not needed for re-pack to work
+        'tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbFileSysTools\ActiveXDLL\Project")
+        'Debug.Print FileExists(BuildPath(tbFolderPath, ".meta"))
+        'DeleteFile BuildPath(tbFolderPath, ".meta"), ignoreMissing:=True
+    End Sub
+
+End Module

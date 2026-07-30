@@ -1,0 +1,49 @@
+Module modReport
+    Option Explicit
+    ' ==========================================================================
+    ' modReport - shared output tee for the benchmark/parity harness.
+    '
+    ' Emit() writes to BOTH the IDE Immediate pane (Debug.Print, stripped in
+    ' compiled builds) and an in-memory buffer. Flush() writes the buffer to a
+    ' timestamped .txt file so a windowless/form exe still surfaces results.
+    '
+    ' Lifecycle: Reset -> Emit... -> Flush(prefix). Top-level runnables own the
+    ' Reset/Flush; the *Core workers only Emit, so they can be composed by
+    ' RunSuite into a single report.
+    ' ==========================================================================
+
+    Public gReportBuf As String
+    Public gLastReportPath As String
+
+    ' Change this if you'd rather write next to the exe, a project folder, etc.
+    Private Function OutputFolder() As String
+        'OutputFolder = Environ$("TEMP")
+        OutputFolder = Environ$("USERPROFILE") & "\Documents\GitHub\tbRegExp\Tests"
+    End Function
+
+    Public Sub Reset()
+        gReportBuf = vbNullString
+    End Sub
+
+    Public Sub Emit(ByVal s As String)
+        Debug.Print s                                   ' IDE only; no-op in compiled exe
+        gReportBuf = gReportBuf & s & vbCrLf
+    End Sub
+
+    Public Function Flush(ByVal prefix As String) As String
+        Dim path As String, ff As Integer
+        path = OutputFolder() & "\" & prefix & "_" & Format$(Now, "yyyymmdd_hhnnss") & ".txt"
+        On Error GoTo Fail
+        ff = FreeFile
+        Open path For Output As #ff
+        Print #ff, gReportBuf ;
+        Close #ff
+        gLastReportPath = path
+        Flush = path
+        Exit Function
+Fail:
+        gLastReportPath = vbNullString
+        Flush = vbNullString
+    End Function
+
+End Module

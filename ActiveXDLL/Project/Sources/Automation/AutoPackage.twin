@@ -1,0 +1,132 @@
+Private Module AutoPackage
+
+    Sub prep_for_package()
+        Dim tbFolderPath As String
+        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\tbRegExp")
+        Dim tbSourcesPath As String
+        tbSourcesPath = BuildPath(tbFolderPath, "Sources")
+        
+        Dim c As New Collection
+        c.Add ".\Sources\FileSystemObject.twin"
+        c.Add ".\Sources\FileSystemTools.twin"
+        c.Add ".\Sources\File.twin"
+        c.Add ".\Sources\Files.twin"
+        c.Add ".\Sources\Folder.twin"
+        c.Add ".\Sources\Folders.twin"
+        c.Add ".\Sources\Drive.twin"
+        c.Add ".\Sources\Drives.twin"
+        c.Add ".\Sources\TextStream.twin"
+        c.Add ".\Sources\TextCodec.twin"
+        c.Add ".\Sources\FSTShared.twin"
+        c.Add ".\Sources\WinAPI.twin"
+        
+        Dim p As String
+        Dim s() As String
+        Dim o() As String
+        Dim i As Long, j As Long
+
+        For Each p In c.Items
+            ReDim o(0 To 1000000)
+            o(0) = "' =========================================================================="
+            o(1) = "' This file was automatically generated from the ActiveX DLL version source."
+            o(2) = "' COM machinery stripped out for twinBASIC package."
+            o(3) = "' =========================================================================="
+            j = 3
+            s = TextFileToArray(p)
+            For i = LBound(s) To UBound(s)
+                If Trim(s(i)) Like "[[]COMCreatable*[]]" Then GoTo skip
+                If Trim(s(i)) Like "[[]ClassId*[]]" Then GoTo skip
+                If Trim(s(i)) Like "[[]InterfaceId*[]]" Then GoTo skip
+                j = j + 1
+                o(j) = s(i)
+                skip:
+            Next
+            ReDim Preserve o(0 To j)
+            ArrayToTextFile o, BuildPath(tbSourcesPath, GetFileName(p)) ',  encoding:=enc, lineEnding:=le
+        Next p
+
+        ' Modify version to match version from this project
+        Dim txt As String
+        Dim fp As String
+        Dim d As Dictionary
+        
+        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\tbRegExp")
+        fp = BuildPath(tbFolderPath, "Settings")
+        txt = TextFileToString(fp)
+        
+        Set d = LibJSON.Parse(txt).Value
+        d("project.versionMajor") = App.Major
+        d("project.versionMinor") = App.Minor
+        d("project.versionBuild") = App.Build
+        d("project.versionRevision") = App.Revision
+        
+        txt = LibJSON.Serialize(d, indentspaces:=8)
+        StringToTextFile txt, BuildPath(tbFolderPath, "Settings")
+        
+        ' Copy/modify readme file - remove hyperlinks as they can cause IDE issues if clicked
+        Dim readMePath As String
+        readMePath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\README.md")
+        txt = TextFileToString(readMePath)
+        'txt = VBA.Replace$(txt, "[twinBASIC](https://twinbasic.com)", "twinBASIC")
+        'txt = VBA.Replace$(txt, "[Tests](https://github.com/GCuser99/tbRegExp/tree/main/ActiveXDLL/Sources/Tests) folder", "**Tests** folder")
+        'txt = VBA.Replace$(txt, "[Verification](#verification)", "**Verification** section below")
+        'StringToTextFile txt, BuildPath(tbFolderPath, "README.md")
+        
+        ' Process the CHANGELOG.md - add latest changes in reverse chronological order
+        txt = "# Change Log"
+        txt = txt & vbCrLf & vbCrLf & "[v1.1.0.0, 29 July 2026]"
+        txt = txt & vbCrLf & vbCrLf & " - Prefixed SpecialFolderConst enums so they don't clutter Intellisense"
+        txt = txt & vbCrLf & " - Prefixed FileAttribute enums so they don't clutter Intellisense"
+        txt = txt & vbCrLf & vbCrLf & "[v1.0.1.0, 28 July 2026]"
+        txt = txt & vbCrLf & vbCrLf & " - Added automation code for building Package and SFDI twinproj files"
+        txt = txt & vbCrLf & vbCrLf & "[v1.0.0.0, 27 July 2026]"
+        txt = txt & vbCrLf & vbCrLf & " - Initial publication"
+        StringToTextFile txt, BuildPath(tbFolderPath, "CHANGELOG.md")
+        
+        ' Copy license file over
+        Dim licensePath As String
+        licensePath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\LICENSE")
+        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\tbRegExp\LICENSE.md")
+        CopyFile licensePath, tbFolderPath
+
+        ' Build the .twinproj file - requires ImpExp console app (https://github.com/GCuser99/tbImportExport)
+        Dim exePath As String, outProjPath As String
+        exePath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbImportExport\Build\ImpExp.exe")
+            
+        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\tbRegExp package")
+        outProjPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\tbRegExp package.twinproj")
+            
+        DeleteFile outProjPath, ignoreMissing:=True
+            
+        tbFolderPath = """" & tbFolderPath & """"
+        outProjPath = """" & outProjPath & """"
+        exePath = """" & exePath & """"
+        Shell exePath & " export " & tbFolderPath & " " & outProjPath, vbNormalFocus
+    End Sub
+    
+    Sub UnpackTwinProj()
+        ' Requires ImpExp console app (https://github.com/GCuser99/tbImportExport)
+        Dim exePath As String
+        Dim inProjPath As String
+        Dim tbFolderPath As String
+        
+        exePath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbImportExport\Build\ImpExp.exe")
+        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\Project")
+        inProjPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\tbRegExp.twinproj")
+        
+        DeleteFolder tbFolderPath, ignoreMissing:=True
+        
+        tbFolderPath = """" & tbFolderPath & """"
+        inProjPath = """" & inProjPath & """"
+        exePath = """" & exePath & """"
+        
+        ' Run unpack
+        Shell exePath & " import " & inProjPath & " " & tbFolderPath, vbNormalFocus
+        
+        ' .meta could have personal info - not needed for re-pack to work
+        'tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\tbRegExp package")
+        'Debug.Print FileExists(BuildPath(tbFolderPath, ".meta"))
+        'DeleteFile BuildPath(tbFolderPath, ".meta"), ignoreMissing:=True
+    End Sub
+    
+End Module
