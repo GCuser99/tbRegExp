@@ -10,7 +10,7 @@ It is **pure twinBASIC**: no COM reference, no external DLL, no runtime dependen
 regular-expression engine underneath is [**sihlfall's `vba-regex`**](https://github.com/sihlfall/vba-regex),
 an excellent ECMAScript-compatible matcher; this project is the compatibility wrapper around it.
 
-\---
+---
 
 ## Why this exists
 
@@ -27,7 +27,7 @@ This library fills that gap now: a self-contained, dependency-free, VBScript-com
 `RegExp` you can drop into a twinBASIC project today, with no reliance on VBScript and no
 external components to ship.
 
-\---
+---
 
 ## Credits
 
@@ -38,14 +38,14 @@ The heavy lifting — the actual regular-expression compilation and matching —
 
 Please star and support that project; it is the foundation this wrapper stands on. The
 engine module (`StaticRegex`) is sihlfall's work, carrying a few small, self-contained
-performance tweaks; the base is available in sihlfall's
+performance tweaks; the original base is available in sihlfall's
 [`aio` folder](https://github.com/sihlfall/vba-regex/tree/master/aio). The convenient
-`Flags` property was adapted from sihlfall's `stdRegex3` class.
+`Flags` property addition was adapted from sihlfall's `stdRegex3` class.
 
 This wrapper (the `RegExp`/`Match`/`MatchCollection`/`SubMatches` compatibility layer) is
 MIT-licensed — see [License](#license).
 
-\---
+---
 
 ## Installation
 
@@ -57,7 +57,7 @@ Add two source files to your twinBASIC project:
 
 That's it — no references to add, no DLLs to register.
 
-\---
+---
 
 ## Quick start
 
@@ -85,7 +85,7 @@ Existing code written against `VBScript.RegExp` should run as-is — just change
 `CreateObject("VBScript.RegExp")` / the *Microsoft VBScript Regular Expressions 5.5*
 reference to `New RegExp`.
 
-\---
+---
 
 ## Beyond VBScript.RegExp
 
@@ -138,7 +138,7 @@ re.Pattern = "(?i:abc)DEF"        ' case-insensitive for 'abc' only
 re.Flags = "gis"   ' Global + IgnoreCase + DotAll  (g m i s)
 ```
 
-\---
+---
 
 ## Performance
 
@@ -181,7 +181,7 @@ dependency is acceptable, a wrapper around a native engine (e.g. .NET's) will be
 matcher — that is the trade this library deliberately does *not* make, in favour of being
 self-contained and portable.
 
-\---
+---
 
 ## Compatibility notes and limitations
 
@@ -198,7 +198,7 @@ and conditionals.
 Parity with `VBScript.RegExp` across the common surface is verified by an included test
 harness (`modParity`) that compares output against the live engine.
 
-\---
+---
 
 ## License
 
@@ -207,7 +207,7 @@ MIT License. Copyright (c) 2025–2026, GCUser99.
 The bundled engine (`StaticRegex`) is sihlfall's `vba-regex`; see that project for its own
 license terms.
 
-\---
+---
 
 ## Acknowledgements
 
