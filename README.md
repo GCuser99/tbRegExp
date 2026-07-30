@@ -113,7 +113,7 @@ Debug.Print m.SubMatches("year"), m.SubMatches("month")   ' by name
 Debug.Print m.SubMatches(0),      m.SubMatches(1)          ' still by index too
 ```
 
-**Named references in Replace** — use $<name> in the replacement string, not just $1:
+**Named references in Replace** — use `$<name>` in the replacement string, not just `$1`:
 
 ```vba
 re.Pattern = "(?<y>\d{4})-(?<m>\d{2})"
