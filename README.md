@@ -56,7 +56,7 @@ That's it — no references to add, no DLLs to register.
 
 ## Quick start
 
-```vb
+```vba
 Dim re As New RegExp
 re.Pattern = "(\\d{4})-(\\d{2})-(\\d{2})"
 re.Global = True
@@ -90,7 +90,7 @@ cannot do:
 
 **`DotAll` — let `.` match newlines.** A `DotAll` property (the ECMAScript `s` flag):
 
-```vb
+```vba
 re.Pattern = "start.\*end"
 re.DotAll = True          ' now '.' spans line breaks
 ```
@@ -122,13 +122,13 @@ re.Replace("2026-07", "$<m>/$<y>")   ' -> 07/2026
 
 **Lookbehind** — `(?<=...)` and `(?<!...)`, in addition to lookahead:
 
-```vb
+```vba
 re.Pattern = "(?<=\\$)\\d+"     ' digits preceded by a '$'
 ```
 
 **Inline mode modifiers** — both the whole-group form and the scoped form, for `i`/`m`/`s`:
 
-```vb
+```vba
 re.Pattern = "(?i)hello"          ' case-insensitive from here on
 re.Pattern = "foo(?s:.\*)bar"      ' DotAll only inside the group
 re.Pattern = "(?i:abc)DEF"        ' case-insensitive for 'abc' only
@@ -136,7 +136,7 @@ re.Pattern = "(?i:abc)DEF"        ' case-insensitive for 'abc' only
 
 **A `Flags` convenience property** — set several options from one string:
 
-```vb
+```vba
 re.Flags = "gis"   ' Global + IgnoreCase + DotAll  (g m i s)
 ```
 
