@@ -199,7 +199,7 @@ harness (`modParity`) that compares output against the live engine.
 
 MIT License. Copyright (c) 2025–2026, GCUser99.
 
-The bundled engine (`StaticRegex`) is sihlfall's `vba-regex`; see that project for its own
+The bundled engine (`StaticRegex`) is a minimally edited version of sihlfall's `vba-regex`; see that project for its own
 license terms.
 
 ---
