@@ -36,14 +36,11 @@ The heavy lifting — the actual regular-expression compilation and matching —
 
 > https://github.com/sihlfall/vba-regex
 
-Please star and support that project; it is the foundation this wrapper stands on. The
-engine module (`StaticRegex`) is sihlfall's work, carrying a few small, self-contained
-performance tweaks; the original base is available in sihlfall's
-[`aio` folder](https://github.com/sihlfall/vba-regex/tree/master/aio). The convenient
-`Flags` property addition was adapted from sihlfall's `stdRegex3` class.
+Please star and support that project. The engine module (`StaticRegex`) is sihlfall's
+work, carrying a few small, self-contained performance tweaks; the original base is
+available in sihlfall's [`aio` folder](https://github.com/sihlfall/vba-regex/tree/master/aio).
 
-This wrapper (the `RegExp`/`Match`/`MatchCollection`/`SubMatches` compatibility layer) is
-MIT-licensed — see [License](#license).
+The convenient `Flags` property addition was adapted from sihlfall's `stdRegex3` class.
 
 ---
 
