@@ -40,8 +40,6 @@ Please star and support that project. The engine module (`StaticRegex`) is sihlf
 work, carrying a few small, self-contained performance tweaks; the original base is
 available in sihlfall's [`aio` folder](https://github.com/sihlfall/vba-regex/tree/master/aio).
 
-The convenient `Flags` property addition was adapted from sihlfall's `stdRegex3` class.
-
 ---
 
 ## Installation
