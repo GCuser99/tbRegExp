@@ -3,7 +3,7 @@
         "project.appTitle": "tbRegExp",
         "project.buildPath": "${SourcePath}\\Build\\${ProjectName}_${Architecture}.${FileExtension}",
         "project.buildType": "Package TWINPACK",
-        "project.description": "Regular Expressions Engine - Replacement for VBScript.RegExp",
+        "project.description": "Regular Expressions Object - Replacement for VBScript.RegExp",
         "project.id": "{E1B23FED-12D0-4166-B1E0-3BE49A6B9C26}",
         "project.largeAddressAware": true,
         "project.licence": "MIT",

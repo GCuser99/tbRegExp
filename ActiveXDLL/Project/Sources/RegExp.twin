@@ -17,7 +17,7 @@
 [COMCreatable(False)]
 [PredeclaredId(False)]
 [Hidden(False)]
-[Description("This class exposes a drop-in replacement for VBSript's regular expression object model.")]
+[Description("This class exposes a drop-in replacement for VBSript's regular expressions object model.")]
 Public Class RegExp
     Option Explicit
     ' ==========================================================================

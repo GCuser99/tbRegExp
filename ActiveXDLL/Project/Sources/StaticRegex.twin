@@ -16,8 +16,8 @@ Private Module StaticRegex
     ' https://github.com/sihlfall/vba-regex
     '
     ' ==========================================================================
-    ' LOCAL PERFORMANCE PATCHES BY GCUSER99 (vs. upstream sihlfall/vba-regex)
-    ' All edits are banner-marked; grep "PERF PATCH" to find every site.
+    ' LOCAL PERFORMANCE PATCHES BY GCuser99:
+    ' All edits are banner-marked; grep "PATCH" to find every site.
     ' None of these affect the RegExp/Match/SubMatches/MatchCollection wrapper,
     ' which is independent of them.
     '
@@ -51,7 +51,7 @@ Private Module StaticRegex
     ' PATCH 04 - Replace renamed to ReplaceByRegEx, similar to SplitByRegEx
     '   in order to avoid collision with VBA's Replace and Split functions
     '
-    ' PATCH 05 - make BytecodeDescriptionConstant enum Public for RegExp use
+    ' PATCH 05 - make BytecodeDescriptionConstant Enum Public for RegExp use
     '
     ' ==========================================================================
     Option Private Module

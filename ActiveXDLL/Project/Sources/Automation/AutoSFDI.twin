@@ -7,18 +7,8 @@ Module AutoSFDI
         tbSourcesPath = BuildPath(tbFolderPath, "Sources")
         
         Dim c As New Collection
-        c.Add ".\Sources\FileSystemObject.twin"
-        c.Add ".\Sources\FileSystemTools.twin"
-        c.Add ".\Sources\File.twin"
-        c.Add ".\Sources\Files.twin"
-        c.Add ".\Sources\Folder.twin"
-        c.Add ".\Sources\Folders.twin"
-        c.Add ".\Sources\Drive.twin"
-        c.Add ".\Sources\Drives.twin"
-        c.Add ".\Sources\TextStream.twin"
-        c.Add ".\Sources\TextCodec.twin"
-        c.Add ".\Sources\FSTShared.twin"
-        c.Add ".\Sources\WinAPI.twin"
+        c.Add ".\Project\Sources\RegExp.twin"
+        c.Add ".\Project\Sources\StaticRegEx.twin"
         
         'determine encoding for first file
         Dim enc As TextEncoding
