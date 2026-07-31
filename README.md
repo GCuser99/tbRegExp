@@ -1,13 +1,13 @@
 # RegExp for twinBASIC
 
-A drop-in replacement for VBScript's regular-expression object model (`VBScript.RegExp` /
+A drop-in replacement for VBScript's regular-expressions object model (`VBScript.RegExp` /
 *Microsoft VBScript Regular Expressions 5.5*), written for [twinBASIC](https://twinbasic.com).
 It exposes the familiar `RegExp` / `Match` / `MatchCollection` / `SubMatches` objects, so
 existing VBScript-style regex code works unchanged — while also supporting a number of
 modern regex features that `VBScript.RegExp` never had.
 
 It is **pure twinBASIC**: no COM reference, no external DLL, no runtime dependency. The
-regular-expression engine underneath is [**sihlfall's vba-regex**](https://github.com/sihlfall/vba-regex),
+regular-expressions engine underneath is [**sihlfall's vba-regex**](https://github.com/sihlfall/vba-regex),
 an excellent ECMAScript-compatible matcher; this project is the compatibility wrapper around it.
 
 ---
@@ -19,7 +19,7 @@ but it arrives via the (now-deprecated) VBScript runtime. Microsoft has since bu
 `RegExp` into the **VBA** library (Office version 2508, 2025) so VBA users no longer need the
 VBScript reference — but that is VBA, not twinBASIC.
 
-**twinBASIC has no built-in regular-expression support today.** Its author, Wayne Phillips,
+**twinBASIC has no built-in regular-expressions support today.** Its author, Wayne Phillips,
 has indicated native regex is on the roadmap, but not before v1.0. Until then, tB developers
 either have to depend on the deprecated `VBScript.RegExp` COM object or roll their own.
 
@@ -31,7 +31,7 @@ external components to ship.
 
 ## Credits
 
-The heavy lifting — the actual regular-expression compilation and matching — is
+The heavy lifting — the actual regular-expressions compilation and matching — is
 **sihlfall's vba-regex** engine:
 
 > https://github.com/sihlfall/vba-regex
