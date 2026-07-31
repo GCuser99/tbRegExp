@@ -1,0 +1,89 @@
+{
+	"rootFolder": "/NewProject",
+	"fs_expandedFolders": [
+		"/NewProject",
+		"/NewProject/Sources"
+	],
+	"openEditors": [
+		{
+			"uri": "/NewProject/Sources/MainModule.twin",
+			"state": {
+				"cursorState": [
+					{
+						"inSelectionMode": false,
+						"selectionStart": {
+							"lineNumber": 6,
+							"column": 18
+						},
+						"position": {
+							"lineNumber": 6,
+							"column": 18
+						}
+					}
+				],
+				"viewState": {
+					"scrollLeft": 0,
+					"firstPosition": {
+						"lineNumber": 1,
+						"column": 1
+					},
+					"firstPositionDeltaTop": 0
+				},
+				"contributionsState": {
+					"editor.contrib.wordHighlighter": true,
+					"editor.contrib.folding": {
+						"lineCount": 11,
+						"provider": "syntax",
+						"foldedImports": false
+					}
+				}
+			},
+			"isSelected": false
+		},
+		{
+			"uri": "/NewProject/Sources/Form1.twin", 
+			"state": {
+				"cursorState": [
+					{
+						"inSelectionMode": false,
+						"selectionStart": {
+							"lineNumber": 1,
+							"column": 1
+						},
+						"position": {
+							"lineNumber": 1,
+							"column": 1
+						}
+					}
+				],
+				"viewState": {
+					"scrollLeft": 0,
+					"firstPosition": {
+						"lineNumber": 1,
+						"column": 1
+					},
+					"firstPositionDeltaTop": 0
+				},
+				"contributionsState": {
+					"editor.contrib.wordHighlighter": false,
+					"editor.contrib.folding": {
+						"collapsedRegions": [],
+						"lineCount": 16,
+						"foldedImports": false
+					}
+				}
+			},
+			"isSelected": false
+		},
+		{
+			"uri": "/NewProject/Sources/Form1.tbform", 
+			"isSelected": true
+		}
+	],
+	"debugConsoleEntryHistory": [],
+	"variables_expandedCache": {
+		"/Locals": true
+	},
+	"watches": [],
+	"watches_expandedCache": {}
+}

@@ -1,0 +1,321 @@
+' ==========================================================================
+' This file was automatically generated from the ActiveX DLL version source.
+' COM machinery stripped out for twinBASIC package.
+' ==========================================================================
+' ==========================================================================
+' FileSystemObject
+'
+' A drop-in replacement for Scripting Runtime's FileSystemObject.
+'
+' --- Why this class exists ------------------------------------------------
+' All the real work lives in the FileSystemTools standard module. This class adds
+' nothing but a COM-creatable surface over it, because a standard module cannot be
+' one. It is the entry point for:
+'   * VBA / VBScript / any COM host that expects an OBJECT, not a module
+'   * code being ported from Scripting.FileSystemObject, which can keep its
+'     "Set fso = New FileSystemObject" shape unchanged
+'
+' twinBASIC callers should prefer FileSystemTools directly - it is the same API
+' with one less indirection. Nothing here is available that is not there.
+'
+' It may also compile smaller. Every member of a COM-creatable class is reachable
+' by definition - the type library exposes it - so the compiler cannot strip the
+' parts never called (dead code). Reach the module directly and unused procedures
+' can be eliminated.
+'
+' Argument NAMES do differ with the module version, deliberately: this class uses 
+' FSO's names (fileSpec,folderSpec, driveSpec) so that IntelliSense and named 
+' arguments match what a porter expects, while the module uses clearer ones
+' (filePath, folderPath). That is the only permitted difference.
+'
+' --- Name collision -------------------------------------------------------
+' This class is deliberately called FileSystemObject, the same as Scripting's. In
+' a project referencing BOTH, a bare "New FileSystemObject" is ambiguous and
+' resolves by reference order. Qualify it (tbFileSysTools.FileSystemObject) or drop
+' the Scripting Runtime reference.
+'
+' --- Where this DEVIATES from Scripting.FileSystemObject ------------------
+' Parity is the goal, but not at any price. The deliberate breaks, all verified
+' against the real FSO as an oracle:
+'
+'   Folder.Size   - does NOT follow directory reparse points. FSO does, and will
+'                   therefore double-count a junction into its own subtree
+'                   and recurse forever on a junction to an ancestor. 
+'                   This version reports what physically lives there.
+'   Attributes    - FSO's Volume (8) and Alias (1024) are not provided. Volume has
+'                   no Win32 equivalent; Alias is FILE_ATTRIBUTE_REPARSE_POINT
+'                   under a misleading name (and collides with VBA's vbAlias = 64).
+'                   Use ReparsePoint. Added: SetAttribute / HasAttribute, which
+'                   flip or test ONE bit rather than replacing the whole set.
+'   Enumeration   - an unreadable folder RAISES rather than reporting itself empty.
+'
+' --- Enhancements over FSO ------------------------------------------------
+'   Encodings           - full code-page support on read and write, with BOM handling and
+'                           auto-detection. FSO offers ASCII and UTF-16 only.
+'   Large files         - streams past 2GB and past 4GB, in both directions, including
+'                           append. Windows' own LOF/Seek cannot.
+'   Line endings        - detect, preserve on append, and normalize in place.
+'   GetSpecialFolder    - Expanded special folder enum.
+'   Added members       - GetRelativePath, CleanFileName, GetFilePaths,
+'                           GetCurrentDir, SetCurrentDir, GetFileEncoding,
+'                           GetFileType, GetFileLineEnding, Rename,
+'                           NormalizeTextFile, MergeTextFiles, ReadStream/WriteStream,
+'                           and the TextFile<->String/Array helpers.
+' ==========================================================================
+' MIT License - Copyright (c) 2026, GCUser99 (https://github.com/GCUser99)
+' ==========================================================================
+[Hidden(False)]
+[Description("This class replaces or improves on most functionality of the FileSystemObject, adding reading and writing on non-UTF16 encoded files.")]
+Public Class FileSystemObject
+    Option Explicit
+
+    [Description("Returns the file's version. By default (fvFixed) returns the binary version as major.minor.build.revision, fvFileString returns the authored StringFileInfo FileVersion string and fvProductString returns the ProductVersion string; both fall back to the fixed version when the file has no string block. Returns an empty string when the file carries no version resource, and also for paths longer than 260 characters, which the version-resource APIs do not support.")]
+    Public Function GetFileVersion(ByVal fileName As String, Optional ByVal source As FileVersionSource = fvFixed) As String
+        Return FileSystemTools.GetFileVersion(fileName, source)
+    End Function
+    
+    [Description("Returns the shell's type description for a file or folder (e.g. ""Text Document"", ""Application"", ""File Folder""), the same string Explorer and Scripting.FileSystemObject's File.Type show. Falls back to ""<EXT> File"" or ""File"" when the shell is unavailable, and for paths longer than 260 characters, which the shell APIs do not support.")]
+    Public Function GetFileType(ByVal filePath As String) As String
+        Return FileSystemTools.GetFileType(filePath)
+    End Function
+    
+    [Description("Deletes the specified file (wildcards supported). force clears a read-only attribute first. ignoreMissing (default False) suppresses the file-not-found error when the path or wildcard pattern matches nothing; it does not suppress other failures such as the path being a directory or the file being locked.")]
+    Public Sub DeleteFile(ByVal fileSpec As String, Optional ByVal force As Boolean = False, Optional ByVal ignoreMissing As Boolean = False)
+        FileSystemTools.DeleteFile fileSpec, force, ignoreMissing
+    End Sub
+
+    [Description("Copies a file to the destination path specified. Wildcards are supported in the last component of source.")]
+    Public Sub CopyFile(ByVal source As String, ByVal destination As String, Optional ByVal overwrite As Boolean = True)
+        FileSystemTools.CopyFile source, destination, overwrite
+    End Sub
+    
+    [Description("Copies a folder to the destination path specified.")]
+    Public Sub CopyFolder(ByVal source As String, ByVal destination As String, Optional ByVal overwrite As Boolean = True)
+        FileSystemTools.CopyFolder source, destination, overwrite
+    End Sub
+    
+    [Description("Combines a folder path and the name of a folder or file and returns the combination with valid path separators.")]
+    Public Function BuildPath(ByVal path As String, ByVal name As String) As String
+        Return FileSystemTools.BuildPath(path, name)
+    End Function
+    
+    [Description("Returns True if a specified folder exists; False if it does not.")]
+    Public Function FolderExists(ByVal folderSpec As String) As Boolean
+        Return FileSystemTools.FolderExists(folderSpec)
+    End Function
+    
+    [Description("Deletes a folder and its contents (wildcards supported). force clears read-only attributes as it goes. ignoreMissing (default False) suppresses the path-not-found error when the folder or wildcard pattern matches nothing; it does not suppress other failures such as the path being a file or the folder being locked or non-empty.")]
+    Public Sub DeleteFolder(ByVal folderSpec As String, Optional ByVal force As Boolean = False, Optional ByVal ignoreMissing As Boolean = False)
+        FileSystemTools.DeleteFolder(folderSpec, force, ignoreMissing)
+    End Sub
+    
+    [Description("Returns True if a specified file exists; False if it does not.")]
+    Public Function FileExists(ByVal fileSpec As String) As Boolean
+        Return FileSystemTools.FileExists(fileSpec)
+    End Function
+    
+    [Description("Returns True if a specified drive exists; False if it does not.")]
+    Public Function DriveExists(ByVal driveSpec As String) As Boolean
+        Return FileSystemTools.DriveExists(driveSpec)
+    End Function
+    
+    [Description("Moves one or more files from one location to another.")]
+    Public Sub MoveFile(ByVal source As String, ByVal destination As String)
+        FileSystemTools.MoveFile source, destination
+    End Sub
+
+    [Description("Moves a folder from one location to another.")]
+    Public Sub MoveFolder(ByVal source As String, ByVal destination As String)
+        FileSystemTools.MoveFolder source, destination
+    End Sub
+    
+    [Description("Creates a folder and returns the new Folder. Errors if it already exists. By default only the leaf is created; pass createIntermediates:=True to also create any missing intermediate folders.")]
+    Public Function CreateFolder(ByVal path As String, Optional ByVal createIntermediates As Boolean = False) As Folder
+        Set CreateFolder = FileSystemTools.CreateFolder(path, createIntermediates)
+    End Function
+
+    [Description("Returns a randomly generated temporary file or folder name. If inFolder is supplied, the returned name is one that does not already exist in that folder at the time of the call.")]
+    Public Function GetTempName(Optional ByVal prefix As String, Optional ByVal extension As String = ".tmp", Optional ByVal inFolder As String = "") As String
+        Return FileSystemTools.GetTempName(prefix, extension, inFolder)
+    End Function
+    
+    [Description("Returns a complete and unambiguous path from a provided path specification.")]
+    Public Function GetAbsolutePathName(ByVal path As String, Optional ByVal baseDirectory As String = "", Optional ByVal useLongPathPrefix As Boolean = False) As String
+        Return FileSystemTools.GetAbsolutePathName(path, baseDirectory, useLongPathPrefix)
+    End Function
+    
+    [Description("Cleans a file name (not a path) of items that are invalid in Windows: the reserved characters \ / : * ? "" < > |, control characters, leading/trailing spaces, trailing dots, and reserved device names such as CON, PRN, NUL, COM0-9 and LPT0-9.")]
+    Public Function CleanFileName(ByVal fileName As String, Optional ByVal replaceChar As String = "") As String
+        Return FileSystemTools.CleanFileName(fileName, replaceChar)
+    End Function
+    
+    [Description("Returns the last component of a specified path that is not part of the drive specification.")]
+    Public Function GetFileName(ByVal path As String) As String
+        Return FileSystemTools.GetFileName(path)
+    End Function
+
+    [Description("Returns a string containing the name of the parent folder of the last component in a specified path.")]
+    Public Function GetParentFolderName(ByVal path As String) As String
+        Return FileSystemTools.GetParentFolderName(path)
+    End Function
+    
+    [Description("Returns a string containing the extension name for the last component in a path.")]
+    Public Function GetExtensionName(ByVal path As String) As String
+        Return FileSystemTools.GetExtensionName(path)
+    End Function
+    
+    [Description("Returns a string containing the base name of the last component, less any file extension, in a path.")]
+    Public Function GetBaseName(ByVal path As String) As String
+        Return FileSystemTools.GetBaseName(path)
+    End Function
+    
+    [Description("Returns a string containing the name of the drive for a specified path.")]
+    Public Function GetDriveName(ByVal path As String) As String
+        Return FileSystemTools.GetDriveName(path)
+    End Function
+    
+    [Description("Returns the current directory.")]
+    Public Function GetCurrentDir() As String
+        Return FileSystemTools.GetCurrentDir()
+    End Function
+    
+    [Description("Sets the current directory.")]
+    Public Sub SetCurrentDir(ByVal folderPath As String)
+        FileSystemTools.SetCurrentDir folderPath
+    End Sub
+
+    [Description("Renames a file or folder in place. The new name must be a bare name, or a path that resolves to the same folder as the source — it cannot move the item to a different folder. Wildcards are not permitted, and the destination must not already exist.")]
+    Public Sub Rename(ByVal source As String, ByVal newName As String)
+        FileSystemTools.Rename source, newName
+    End Sub
+    
+    [Description("Returns the absolute path to the requested known folder. The returned path does NOT include a trailing backslash.")]
+    Public Function GetSpecialFolder(ByVal specialFolder As SpecialFolderConst) As String
+        Return FileSystemTools.GetSpecialFolder(specialFolder)
+    End Function
+
+    [Description("Returns a relative path from a base path to a target path. The base path is treated as a folder by default. Relative inputs are resolved against the current directory. Returns the absolute target if no relative path exists (e.g. different drives).")]
+    Public Function GetRelativePath(ByVal basePath As String, ByVal targetPath As String, _
+        Optional ByVal basePathIsFolder As Boolean = True, _
+        Optional ByVal trimLeadingDotSlash As Boolean = True) As String
+        Return FileSystemTools.GetRelativePath(basePath, targetPath, basePathIsFolder, trimLeadingDotSlash)
+    End Function
+    
+    [Description("Returns a Collection of full file paths in the specified folder. Supports a wildcard pattern, optional recursion into subfolders, inclusion of hidden/system files.")]
+    Public Function GetFilePaths(ByVal folderPath As String, _
+        Optional ByVal pattern As String = "*", _
+        Optional ByVal includeHidden As Boolean = False, _
+        Optional ByVal includeSystem As Boolean = False, _
+        Optional ByVal recursive As Boolean = False) As Collection
+        Set GetFilePaths = FileSystemTools.GetFilePaths(folderPath, pattern, includeHidden, includeSystem, recursive)
+    End Function
+
+    [Description("Detects a file's text encoding from a head sample (default 64 KB): BOM sniff first, then UTF-16/32 and UTF-8 heuristics, else system ANSI. Returns a signed TextEncoding (negative = BOM present), or encUnknown if the file is empty or looks binary. Raises if the file cannot be read.")]
+    Public Function GetFileEncoding(ByVal filePath As String, Optional ByVal sampleBytes As Long = 65536) As TextEncoding
+        Return FileSystemTools.GetFileEncoding(filePath, sampleBytes)
+    End Function
+    
+    [Description("Reads an entire text file to a string. With encAutoDetect (default) the encoding is detected, and a binary file raises; with an explicit encoding that encoding is used as-is (a byte-order mark still overrides it). A leading BOM is stripped. An empty file returns an empty string. Optionally normalizes line endings.")]
+    Public Function TextFileToString(ByVal filePath As String, _
+        Optional ByVal encoding As TextEncoding = encAutoDetect, _
+        Optional ByVal outLineEnding As NewlineType = nlNoChange) As String
+        Return FileSystemTools.TextFileToString(filePath, encoding, outLineEnding)
+    End Function
+    
+    [Description("Writes a string to a file in the specified encoding (a BOM is emitted only for BOM-bearing members such as encUtf8Bom). Overwrites any existing file.")]
+    Public Sub StringToTextFile(ByVal text As String, ByVal filePath As String, _
+        Optional ByVal encoding As TextEncoding = encUtf8, _
+        Optional ByVal outLineEnding As NewlineType = nlNoChange)
+        FileSystemTools.StringToTextFile text, filePath, encoding, outLineEnding
+    End Sub
+    
+    [Description("Writes an array of lines to a file in the specified encoding (a BOM is emitted only for BOM-bearing members such as encUtf8Bom). Overwrites any existing file.")]
+    Public Sub ArrayToTextFile(ByRef lines() As String, ByVal filePath As String, _
+        Optional ByVal encoding As TextEncoding = encUtf8, _
+        Optional ByVal lineEnding As NewlineType = nlWindows)
+        FileSystemTools.ArrayToTextFile lines, filePath, encoding, lineEnding
+    End Sub
+    
+    [Description("Reads a text file into an array of lines (mixed CR/LF/CRLF handled). Encoding auto-detected by default. A trailing newline yields a final empty element. An empty file returns an unallocated array.")]
+    Public Function TextFileToArray(ByVal filePath As String, Optional ByVal encoding As TextEncoding = encAutoDetect) As String()
+        Return FileSystemTools.TextFileToArray(filePath, encoding)
+    End Function
+    
+    [Description("Reads the file specified into a byte array.")]
+    Public Sub ReadStream(ByVal filePath As String, ByRef stream() As Byte, Optional ByVal maxBytesToRead As Long = -1)
+        FileSystemTools.ReadStream filePath, stream, maxBytesToRead
+    End Sub
+    
+    [Description("Writes a byte array to the file specified.")]
+    Public Sub WriteStream(ByRef stream() As Byte, ByVal filePath As String)
+        FileSystemTools.WriteStream stream, filePath
+    End Sub
+    
+    [Description("Opens a text file and returns a streaming TextStream. For reading, omit encoding (encAutoDetect) to detect it from a head sample. For writing/appending, encoding selects the output encoding (default UTF-8, no BOM). Encodings whose chunk boundaries cannot be managed (UTF-7, unclassifiable code pages) transparently fall back to a buffered path.")]
+    Public Function OpenTextFile(ByVal fileName As String, _
+        Optional ByVal ioMode As IOMode = ForReading, _
+        Optional ByVal create As Boolean = False, _
+        Optional ByVal encoding As TextEncoding = encAutoDetect, _
+        Optional ByVal writeModeLineEnding As NewlineType = nlWindows) As TextStream
+        Set OpenTextFile = FileSystemTools.OpenTextFile(fileName, ioMode, create, encoding, writeModeLineEnding)
+    End Function
+
+    [Description("Creates (or overwrites) a text file and returns a TextStream open for writing.")]
+    Public Function CreateTextFile(ByVal fileName As String, _
+        Optional ByVal overwrite As Boolean = True, _
+        Optional ByVal encoding As TextEncoding = encUtf8, _
+        Optional ByVal lineEnding As NewlineType = nlWindows) As TextStream
+        Set CreateTextFile = FileSystemTools.CreateTextFile(fileName, overwrite, encoding, lineEnding)
+    End Function
+
+    ' --- public factories -------------------------------------------------
+    [Description("Returns a File object for an existing file.")]
+    Public Function GetFile(ByVal filePath As String) As File
+        Set GetFile = FileSystemTools.GetFile(filePath)
+    End Function
+
+    [Description("Returns a Folder object for an existing folder.")]
+    Public Function GetFolder(ByVal folderPath As String) As Folder
+        Set GetFolder = FileSystemTools.GetFolder(folderPath)
+    End Function
+
+    [Description("Returns a Drive object for a drive spec: ""C"", ""C:"", ""C:\"", a UNC share, or any path on the drive.")]
+    Public Function GetDrive(ByVal driveSpec As String) As Drive
+        Set GetDrive = FileSystemTools.GetDrive(driveSpec)
+    End Function
+    
+    [Description("Returns a Drives collection of all logical drives present on the system.")]
+    Public Function Drives() As Drives
+        Set Drives = FileSystemTools.GetDrives()
+    End Function
+
+    [Description("Returns a TextStream over one of the process's standard streams. unicode:=True gives UTF-16LE (no BOM); default is the system ANSI code page. Raises if no handle is available (e.g. no console).")]
+    Public Function GetStandardStream(ByVal standardStreamType As StandardStreamTypes, Optional ByVal unicode As Boolean = False) As TextStream
+        Set GetStandardStream = FileSystemTools.GetStandardStream(standardStreamType, unicode)
+    End Function
+ 
+    [Description("Rewrites a text file in place in the target encoding and newline style (source auto-detected). toAttributes enforces a target attribute set (settable bits only); NoChange (the default) preserves the file's current attributes. Skips the write when content is already in target form. Refuses binary files. Returns True if the file was modified.")]
+    Public Function NormalizeTextFile(ByVal filePath As String, _
+        Optional ByVal toEncoding As TextEncoding = encUtf8, _
+        Optional ByVal toNewLine As NewlineType = nlWindows, _
+        Optional ByVal fromEncoding As TextEncoding = encAutoDetect, _
+        Optional ByVal toAttributes As FileAttribute = faNoChange, _
+        Optional ByVal skipIfUnchanged As Boolean = True) As Boolean
+        Return FileSystemTools.NormalizeTextFile(filePath, toEncoding, toNewLine, fromEncoding, toAttributes, skipIfUnchanged)
+    End Function
+    
+    [Description("Reads a text file and reports its line-ending style: nlWindows / nlUnix / nlMacintosh for a consistent file, nlMixed if it contains more than one, or nlUnknown if it has none. Reads the whole file, so the result (including mixed) is exact.")]
+    Public Function GetFileLineEnding(ByVal filePath As String, Optional ByVal encoding As TextEncoding = encAutoDetect) As NewlineType
+        Return FileSystemTools.GetFileLineEnding(filePath, encoding)
+    End Function
+    
+    [Description("Merges two text files in the order specified. If outputFilePath is omitted, the first file is overwritten in place. The second file's line endings are converted to match the first file's. Streams line by line, so file size is not limited.")]
+    Public Sub MergeTextFiles(ByVal firstFilePath As String, ByVal secondFilePath As String, _
+                          Optional ByVal outputFilePath As String, _
+                          Optional ByVal insertBlankLineBetween As Boolean = False, _
+                          Optional ByVal firstFileEncoding As TextEncoding = encAutoDetect, _
+                          Optional ByVal secondFileEncoding As TextEncoding = encAutoDetect)
+        FileSystemTools.MergeTextFiles(firstFilePath, secondFilePath, outputFilePath, insertBlankLineBetween, firstFileEncoding, secondFileEncoding)
+    End Sub
+    
+End Class

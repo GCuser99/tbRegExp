@@ -1,14 +1,15 @@
 {
         "configuration.inherits": "Defaults",
-        "project.appTitle": "tbRegExp",
+        "project.appTitle": "tbFileSysTools",
         "project.buildPath": "${SourcePath}\\Build\\${ProjectName}_${Architecture}.${FileExtension}",
         "project.buildType": "Package TWINPACK",
-        "project.description": "Regular Expressions Engine - Replacement for VBScript.RegExp",
-        "project.id": "{E1B23FED-12D0-4166-B1E0-3BE49A6B9C26}",
+        "project.description": "File System Tools - Modern Replacement for FSO",
+        "project.id": "{1901ECFE-40F4-46F8-8160-B9AD2E5E306F}",
         "project.largeAddressAware": true,
         "project.licence": "MIT",
-        "project.name": "tbRegExp",
+        "project.name": "tbFileSysTools",
         "project.optionExplicit": true,
+        "project.packageVisibility": "PRIVATE",
         "project.references": [
                 {
                         "id": "{00020430-0000-0000-C000-000000000046}",
@@ -22,8 +23,10 @@
                 }
         ],
         "project.settingsVersion": 1,
+        "project.versionBuild": 0,
         "project.versionMajor": 1,
-        "project.versionMinor": 0,
+        "project.versionMinor": 1,
+        "project.versionRevision": 0,
         "project.warnings": {
                 "errors": [],
                 "hints": [],
@@ -31,7 +34,5 @@
                 "info": [],
                 "warnings": []
         },
-        "runtime.useUnicodeStandardLibrary": true,
-        "project.versionBuild": 0,
-        "project.versionRevision": 3
+        "runtime.useUnicodeStandardLibrary": true
 }

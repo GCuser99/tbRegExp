@@ -1,0 +1,370 @@
+' ==========================================================================
+' This file was automatically generated from the ActiveX DLL version source.
+' COM machinery stripped out for twinBASIC package.
+' ==========================================================================
+' ==========================================================================
+' Drive
+'
+' An FSO-style Drive object. Obtained from FileSystemTools.GetDrive,
+' FileSystemTools.GetDrives, File.Drive or Folder.Drive - never New'd directly.
+'
+' Drive has NOTHING to cache: its only state is mRoot, and every property
+' queries Windows live, on every read. That is deliberate - free space,
+' readiness and media presence can change.
+'
+' Two consequences:
+'   * Always fresh. No Refresh method exists because none is needed.
+'   * Every property read is an API round-trip. QueryVolumeInfo unified the CODE
+'     behind VolumeName / FileSystem / SerialNumber, but not the CALLS: reading all
+'     three still hits GetVolumeInformationW three times. Same for the three size
+'     properties and QueryDiskSpace.
+'
+' --- Not-ready drives RAISE ----------------------------------------------
+' The size, label and serial properties raise error 71 ("Disk not ready") when the
+' drive cannot be queried - an empty optical bay, a disconnected share, a card
+' reader with no card. Other failures (permissions, bad net path) map through
+' FSTShared.RaiseFromLastError as usual.
+'
+' Members that NEVER raise, and are safe to call on any Drive object:
+'   IsReady     - THE GATE. Call it first if a not-ready drive is a possibility
+'                 rather than an error.
+'   DriveType   - the TYPE is known even with no media (an empty bay still says
+'                 CDRom).
+'   ShareName   - pure string work, or a network query whose failure IS the answer.
+'   DriveLetter, Path - they only inspect mRoot.
+'
+' RootFolder is the odd one out: it raises 76, not 71, because the failure comes
+' from GetFolder rather than from this class's own mapper.
+'
+' This raise-rather-than-return-zero behaviour is FSO parity, and it is
+' deliberate.
+'
+' --- Two kinds of root ---------------------------------------------------
+' mRoot is either "C:" (a lettered drive) or "\\server\share" (a UNC share), never
+' with a trailing separator - GetDrive normalizes both forms. RootPath() adds the
+' backslash the Win32 calls demand.
+'
+' DriveLetter and ShareName are NOT complementary, despite appearances:
+'   local  "C:"              -> DriveLetter "C",  ShareName ""
+'   mapped "Z:"              -> DriveLetter "Z",  ShareName "\\server\share"
+'   UNC    "\\server\share"  -> DriveLetter "",   ShareName "\\server\share"
+' A mapped drive has BOTH. Only a LOCAL lettered drive has an empty ShareName.
+' ==========================================================================
+' MIT License - Copyright (c) 2026, GCUser99 (https://github.com/GCUser99)
+' ==========================================================================
+[Hidden(False)]
+[Description("Provides access to the properties of a particular disk drive or network share")]
+Public Class Drive
+    Option Explicit
+
+    ' FSO's values, NOT Win32's - the two disagree by one. GetDriveTypeW returns
+    ' DRIVE_UNKNOWN=0, NO_ROOT_DIR=1, REMOVABLE=2, FIXED=3, REMOTE=4, CDROM=5,
+    ' RAMDISK=6; the Select Case in DriveType translates. Keep these values as they
+    ' are - callers written against Scripting.FileSystemObject depend on them.
+    Public Enum DriveTypeConst
+        UnknownType = 0
+        Removable = 1
+        Fixed = 2
+        Remote = 3
+        CDRom = 4
+        RamDisk = 5
+    End Enum
+    
+    ' MAX_PATH + 1. Generous: a volume label maxes out at 32 chars and a file-system
+    ' name is shorter still, so the buffer can never fill - which is what lets
+    ' QueryVolumeInfo assume a NUL terminator is always present.
+    Private Const VOL_BUF As Long = 261
+
+    ' The class's ONLY state. Everything else is queried live.
+    Private mRoot As String                            ' "C:" or "\\server\share"
+
+    ' Friend: only FileSystemTools.GetDrive/GetDrives and the File/Folder .Drive
+    ' properties may construct one.
+    '
+    ' Validates that the DEVICE exists (FSO parity - fso.GetDrive("D:") raises 68 on
+    ' a machine with no D:). It does NOT validate readiness: an empty optical bay has
+    ' a letter and constructs fine, and IsReady is the live question.
+    Friend Sub Init(ByVal root As String)
+        mRoot = root
+        If Not DeviceExists() Then
+            Err.Raise 68, "Drive", "Device unavailable: " & mRoot
+        End If
+    End Sub
+
+    ' Does this device exist at all? (Not "is it ready" - see IsReady.)
+    '
+    ' Lettered drives: the GetLogicalDrives bitmask, via FileSystemTools.DriveExists.
+    ' Authoritative and cheap, and it INCLUDES drives that are present but not ready -
+    ' an empty CD bay still owns its letter, which is exactly the distinction we want.
+    '
+    ' UNC: not validated here. There is no cheap, reliable "does this share exist"
+    ' probe that does not also hit the network, and a share that is merely offline
+    ' should still yield a usable Drive object. An unreachable share therefore fails
+    ' later, at the first live query, where RaiseDriveError maps it to 68 anyway.
+    Private Function DeviceExists() As Boolean
+        If Left$(mRoot, 2) = "\\" Then
+            DeviceExists = True                      ' UNC: shape is all we check
+        Else
+            DeviceExists = FileSystemTools.DriveExists(mRoot)
+        End If
+    End Function
+
+    ' The Win32 calls want a trailing backslash on the root.
+    ' Not cosmetic: GetVolumeInformationW, GetDiskFreeSpaceExW and GetDriveTypeW all
+    ' FAIL on a bare "C:" or "\\server\share".
+    '
+    ' ONE EXCEPTION: WNetGetConnectionW (in ShareName) demands the opposite - a bare
+    ' device name with NO trailing backslash - so it uses mRoot directly and is the
+    ' only API call in this class that does not come through here.
+    Private Function RootPath() As String
+        If Right$(mRoot, 1) = "\" Then RootPath = mRoot Else RootPath = mRoot & "\"
+    End Function
+    
+    ' Win32 codes that mean "there is no such device" in a Drive context.
+    Private Const ERROR_FILE_NOT_FOUND As Long = 2
+    Private Const ERROR_PATH_NOT_FOUND As Long = 3
+    Private Const ERROR_INVALID_DRIVE  As Long = 15
+    Private Const ERROR_BAD_NETPATH    As Long = 53
+    Private Const ERROR_NOT_READY      As Long = 21
+
+    '======================================================================
+    ' Identity
+    '
+    ' None of these raises. DriveLetter and Path are pure string inspection of
+    ' mRoot; ShareName may hit the network, but its failure IS the answer, not an
+    ' error. All three work on a drive that is not ready.
+    '======================================================================
+
+    ' "" for a UNC-built Drive. NOT the inverse of ShareName: a mapped drive Z: has
+    ' BOTH a DriveLetter ("Z") and a ShareName (its UNC). See the header.
+    [Description("Returns one uppercase letter that identifies the local drive or a network share.")]
+    Public Property Get DriveLetter() As String
+        If Mid$(mRoot, 2, 1) = ":" Then DriveLetter = Left$(mRoot, 1)   ' "" for UNC
+    End Property
+    
+    ' DefaultMember: a bare Drive reference in a string context yields its root.
+    ' No trailing backslash ("C:", not "C:\") - FSO parity.
+    [DefaultMember]
+    [Description("Returns an uppercase letter followed by a colon that indicates the path name for a specified drive.")]
+    Public Property Get Path() As String
+        Path = mRoot
+    End Property
+    
+    ' The UNC behind this drive, or "" if there isn't one.
+    '
+    ' Three cases, and the middle one is the whole reason this is not a one-liner:
+    '   \\server\share  -> the object was BUILT from a UNC; mRoot already is it.
+    '   Z: (mapped)     -> mRoot is just "Z:", so the UNC has to be resolved from
+    '                      the OS via WNetGetConnectionW. FSO does this; we did not,
+    '                      which was the deviation this fixes.
+    '   C: (local)      -> no network mapping. WNetGetConnectionW reports
+    '                      ERROR_NOT_CONNECTED (2250), which is an ANSWER, not a
+    '                      failure - hence "" rather than a raise.
+    '
+    ' WNetGetConnectionW wants the device name WITHOUT a trailing backslash ("Z:",
+    ' not "Z:\") - the opposite of every other API in this class, which is why this
+    ' uses mRoot directly rather than RootPath().
+    '
+    ' Deliberately does NOT raise on a disconnected mapping (1201): the drive letter
+    ' still HAS a UNC associated with it, and reporting that name is more useful than
+    ' throwing. The API fills the buffer in that case too. Use IsReady to find out
+    ' whether the mapping currently works.
+    [Description("The UNC path for this drive: the share itself if the object was built from a UNC, the resolved target if it is a mapped network drive, or an empty string for a local drive.")]
+    Public Property Get ShareName() As String
+        ' Built from a UNC: mRoot IS the share name.
+        If Left$(mRoot, 2) = "\\" Then
+            ShareName = mRoot
+            Exit Property
+        End If
+
+        ' Lettered drive: ask the OS whether it is a network mapping.
+        Dim buf As String, cch As Long, rc As Long
+        cch = 261                                   ' MAX_PATH + 1; grown below if short
+        buf = String$(cch, vbNullChar)
+        rc = WNetGetConnectionW(StrPtr(mRoot), StrPtr(buf), cch)
+
+        ' Long UNC (deep DFS paths do exist): retry once with the size it asked for.
+        ' cch comes back as the REQUIRED length, so this second call cannot be short.
+        If rc = ERROR_MORE_DATA Then
+            buf = String$(cch, vbNullChar)
+            rc = WNetGetConnectionW(StrPtr(mRoot), StrPtr(buf), cch)
+        End If
+
+        Select Case rc
+            Case 0, ERROR_CONNECTION_UNAVAIL        ' connected, or mapped-but-offline
+                ShareName = Left$(buf, InStr(buf, vbNullChar) - 1)
+            Case Else                               ' ERROR_NOT_CONNECTED and friends
+                ShareName = vbNullString            ' not a mapped drive: "" is the answer
+        End Select
+    End Property
+    
+    '======================================================================
+    ' Live queries
+    '======================================================================
+
+    ' Translates Win32's DRIVE_* codes to FSO's. Note the two that collapse into
+    ' UnknownType: DRIVE_UNKNOWN (0) and DRIVE_NO_ROOT_DIR (1), the latter meaning
+    ' "that root does not exist". FSO makes the same conflation.
+    ' Never raises, and works on a not-ready drive - the drive TYPE is known even
+    ' when the media is absent (an empty CD bay still reports CDRom).
+    [Description("Returns the type of a specified drive.")]
+    Public Property Get DriveType() As DriveTypeConst
+        Select Case GetDriveTypeW(StrPtr(RootPath()))
+            Case 2: DriveType = Removable
+            Case 3: DriveType = Fixed
+            Case 4: DriveType = Remote
+            Case 5: DriveType = CDRom
+            Case 6: DriveType = RamDisk
+            Case Else: DriveType = UnknownType
+        End Select
+    End Property
+
+    ' THE GATE. It deliberately calls GetDiskFreeSpaceExW directly rather than
+    ' through QueryDiskSpace: its whole job is to ANSWER the question the size
+    ' properties throw on. Never route this through RaiseDriveError, or callers lose
+    ' the ability to ask "is this safe to read?" without an error handler.
+    [Description("True if the drive is ready (media present, queryable). Never raises — check this before reading any size or volume property.")]
+    Public Property Get IsReady() As Boolean
+        Dim a As LongLong, t As LongLong, f As LongLong
+        IsReady = (GetDiskFreeSpaceExW(StrPtr(RootPath()), a, t, f) <> 0)
+    End Property
+    
+    ' The single GetDiskFreeSpaceExW chokepoint. Raises rather than returning zeros.
+    ' All three out-params are always filled, so a caller wanting more than one value
+    ' should call this directly rather than reading two properties and paying for two
+    ' round-trips. 'member' is threaded through purely so the raised error names the
+    ' property the caller actually touched.
+    Private Sub QueryDiskSpace(ByRef availToUser As LongLong, ByRef total As LongLong, _
+                               ByRef free As LongLong, ByVal member As String)
+        Dim e As Long
+        If GetDiskFreeSpaceExW(StrPtr(RootPath()), availToUser, total, free) = 0 Then
+            e = Err.LastDllError                      ' capture BEFORE anything else
+            FSTShared.RaiseFromLastError e, "Drive." & member, mRoot, pathIsDrive:=True
+        End If
+    End Sub
+
+    [Description("Returns the total size of a specified drive or network share. Raises error 71 if the drive is not ready — check IsReady first.")]
+    Public Property Get TotalSize() As LongLong
+        Dim a As LongLong, t As LongLong, f As LongLong
+        QueryDiskSpace a, t, f, "TotalSize"
+        TotalSize = t
+    End Property
+
+    ' Free bytes on the VOLUME - ignores per-user quotas. Compare AvailableSpace.
+    [Description("Free bytes on the volume. Raises error 71 if the drive is not ready — check IsReady first.")]
+    Public Property Get FreeSpace() As LongLong
+        Dim a As LongLong, t As LongLong, f As LongLong
+        QueryDiskSpace a, t, f, "FreeSpace"
+        FreeSpace = f
+    End Property
+
+    ' Free bytes THIS USER may actually consume. On a quota'd volume this is less
+    ' than FreeSpace; with no quota in force the two are equal. This is the one to
+    ' check before writing - it is the number that governs whether the write fits.
+    [Description("Free bytes available to the calling user (honours quotas). Raises error 71 if the drive is not ready — check IsReady first.")]
+    Public Property Get AvailableSpace() As LongLong
+        Dim a As LongLong, t As LongLong, f As LongLong
+        QueryDiskSpace a, t, f, "AvailableSpace"
+        AvailableSpace = a
+    End Property
+    
+    '======================================================================
+    ' Volume information
+    '
+    ' VolumeName, FileSystem and SerialNumber are three fields of ONE
+    ' GetVolumeInformationW call - but each property makes its own, so reading all
+    ' three costs three identical round-trips. QueryVolumeInfo unified the code, not
+    ' the calls. Call it directly if you need more than one field.
+    '======================================================================
+
+    ' The single GetVolumeInformationW chokepoint. Raises rather than returning ""/0.
+    ' Both string buffers must be supplied even when only one is wanted; the API
+    ' fills both regardless. They are pre-filled with NULs and are far larger than
+    ' either field can be (VOL_BUF = 261; a label maxes at 32 chars), so InStr is
+    ' guaranteed to find a terminator and the "- 1" can never underflow. Shrink
+    ' VOL_BUF and that guarantee goes with it.
+    Private Sub QueryVolumeInfo(ByRef label As String, ByRef fsName As String, _
+                                ByRef serial As Long, ByVal member As String)
+        Dim maxComp As Long, flags As Long, e As Long
+        Dim volBuf As String, fsBuf As String
+        volBuf = String$(VOL_BUF, vbNullChar)
+        fsBuf = String$(VOL_BUF, vbNullChar)
+        If GetVolumeInformationW(StrPtr(RootPath()), StrPtr(volBuf), VOL_BUF, serial, maxComp, flags, StrPtr(fsBuf), VOL_BUF) = 0 Then
+            e = Err.LastDllError
+            FSTShared.RaiseFromLastError e, "Drive." & member, mRoot, pathIsDrive:=True
+        End If
+        label = Left$(volBuf, InStr(volBuf, vbNullChar) - 1)
+        fsName = Left$(fsBuf, InStr(fsBuf, vbNullChar) - 1)
+    End Sub
+
+    ' The Let is the only mutating member on this class. Note SetVolumeLabelW cannot
+    ' relabel a remote volume through a share - that fails regardless of permissions.
+    [Description("Sets/Gets the volume label. The setter raises on failure — 71 if the drive is not ready, 70 if you lack permission (labelling requires write access to the volume root).")]
+    Public Property Get VolumeName() As String
+        Dim label As String, fsName As String, serial As Long
+        QueryVolumeInfo label, fsName, serial, "VolumeName"
+        VolumeName = label
+    End Property
+    Public Property Let VolumeName(ByVal value As String)
+        Dim e As Long
+        If SetVolumeLabelW(StrPtr(RootPath()), StrPtr(value)) = 0 Then
+            e = Err.LastDllError
+            FSTShared.RaiseFromLastError e, "Drive.VolumeName", mRoot, pathIsDrive:=True
+        End If
+    End Property
+
+    [Description("The file system name, e.g. NTFS, FAT32, exFAT. Raises error 71 if the drive is not ready.")]
+    Public Property Get FileSystem() As String
+        Dim label As String, fsName As String, serial As Long
+        QueryVolumeInfo label, fsName, serial, "FileSystem"
+        FileSystem = fsName
+    End Property
+
+    ' The volume serial is a 32-bit UNSIGNED value, but FSO reports it through a
+    ' SIGNED Long - so any serial with its high bit set comes back NEGATIVE
+    ' (e.g. 0xD4A1B2C3 -> -728,239,933). That is FSO parity, not a defect: callers
+    ' written against Scripting.FileSystemObject expect exactly this, and widening
+    ' the return type would break them.
+    '
+    ' Use SerialNumberHex for display, or UnsignedSerialNumber if the numeric
+    ' unsigned value is what you need.
+    [Description("Returns the serial number of a specified drive, as a signed Long (FSO parity — a serial with its high bit set reports as a negative number). See SerialNumberHex for the conventional display form.")]
+    Public Property Get SerialNumber() As Long
+        Dim label As String, fsName As String, serial As Long
+        QueryVolumeInfo label, fsName, serial, "SerialNumber"
+        SerialNumber = serial
+    End Property
+    
+    ' The unsigned value. Same bits, correctly interpreted: the +2^32 correction is
+    ' the same one FSTShared.SizeFromHL applies to a file size's low DWORD, and for the
+    ' same reason - a DWORD arriving in a signed Long.
+    [Description("The drive's serial number as an unsigned 32-bit value (0 to 4294967295).")]
+    Public Property Get UnsignedSerialNumber() As LongLong
+        Dim v As LongLong
+        v = CLngLng(SerialNumber)                    ' one GetVolumeInformationW call, via SerialNumber
+        If v < 0 Then v = v + 4294967296^
+        UnsignedSerialNumber = v
+    End Property
+
+    ' Always 8 hex digits, dash-separated in the middle: "D4A1-B2C3".
+    ' Built from the unsigned value so a negative serial formats correctly (Hex$ on a
+    ' negative Long would give the right digits by accident, but only because of
+    ' two's complement - going through the unsigned value says what it means).
+    [Description("The drive's serial number in the conventional Explorer/`vol` display form, e.g. ""D4A1-B2C3"".")]
+    Public Property Get SerialNumberHex() As String
+        Dim h As String
+        h = Right$("00000000" & Hex$(UnsignedSerialNumber), 8)
+        SerialNumberHex = Left$(h, 4) & "-" & Mid$(h, 5)
+    End Property
+    
+    ' The bridge into the File/Folder object graph. Raises 76 (not 71) on a not-ready
+    ' drive, because the failure surfaces from GetFolder rather than from
+    ' RaiseDriveError - the one member whose error number does not follow this
+    ' class's convention.
+    [Description("Returns a Folder object that represents the root folder of a specified drive.")]
+    Public Property Get RootFolder() As Folder
+        Set RootFolder = FileSystemTools.GetFolder(RootPath())
+    End Property
+    
+End Class
+

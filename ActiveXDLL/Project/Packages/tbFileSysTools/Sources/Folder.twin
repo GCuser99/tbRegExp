@@ -1,0 +1,475 @@
+' ==========================================================================
+' This file was automatically generated from the ActiveX DLL version source.
+' COM machinery stripped out for twinBASIC package.
+' ==========================================================================
+' ==========================================================================
+' Folder
+'
+' An FSO-style Folder object. Obtained from FileSystemTools.GetFolder,
+' Folder.SubFolders or Folder.ParentFolder - never New'd directly.
+'
+' --- The one thing to understand: this object is LIVE, not a snapshot -----
+' Every public member begins with EnsureCurrent(), which re-stats the path and
+' refreshes the cached fields. Two consequences that explain almost everything
+' about this class:
+'
+'   * ACCURACY. mAttrs/mCreated/mModified/mAccessed never go stale, and mPath
+'     always carries the true on-disk casing. A Folder whose directory is deleted
+'     out from under it raises 76 on the NEXT property read, rather than quietly
+'     reporting fossilised values.
+'
+'   * COST. Every property read is a FindFirstFileW round-trip. Reading five
+'     properties in a row stats the folder five times. In a tight loop, hoist the
+'     value out rather than re-reading the property.
+'
+' The Init'd fields are therefore a cache, not the source of truth - EnsureCurrent
+' is. The only reason they exist at all is so a stat's worth of data can be
+' handed over in one call by the enumerators, which already have it in hand from
+' WIN32_FIND_DATAW and would otherwise re-stat every child they construct.
+'
+' --- Snapshot vs live, at the collection level ---------------------------
+' Files and SubFolders return a COLLECTION BUILT AT THE MOMENT OF THE CALL. The
+' collection does not track the directory afterwards. The Folder objects inside it
+' are individually live (each re-stats itself), but the membership is frozen. Call
+' the property again to see additions or removals.
+' ==========================================================================
+' MIT License - Copyright (c) 2026, GCUser99 (https://github.com/GCUser99)
+' ==========================================================================
+[Hidden(False)]
+[Description("An FSO-style Folder object. Obtain via FileSystem.GetFolder or Folder.SubFolders; Not New-able directly.")]
+Public Class Folder
+    Option Explicit
+
+    ' Cached stat fields. Refreshed by EnsureCurrent on every public access - see
+    ' the header. Treat these as a write-through cache of the disk, never as state.
+    Private mPath As String
+    Private mAttrs As Long
+    Private mCreated As Date
+    Private mModified As Date
+    Private mAccessed As Date
+
+    ' Friend, not Public: only FileSystemTools.GetFolder and this class's own
+    ' MakeFolderObject may construct one. The caller supplies stat data it already
+    ' holds, so building a subfolder list does not re-stat every child.
+    Friend Sub Init(ByVal path As String, ByVal attrs As Long, ByVal created As Date, ByVal modified As Date, ByVal accessed As Date)
+        mPath = path
+        mAttrs = attrs
+        mCreated = created
+        mModified = modified
+        mAccessed = accessed
+    End Sub
+
+    '======================================================================
+    ' Identity / location
+    '======================================================================
+
+    [Description("Re-reads attributes and dates from disk. Raises error 76 if the folder no longer exists.")]
+    Public Sub Refresh()
+        EnsureCurrent
+    End Sub
+
+    ' NOTE the asymmetry: the Get re-stats (so it reports true on-disk casing),
+    ' but the Let does NOT call EnsureCurrent - Rename resolves and validates the
+    ' path itself, and raises 53 if the folder is gone. The cached fields are left
+    ' stale by the rename; the next Get refreshes them.
+    [Description("Sets or returns the name of a specified folder.")]
+    Public Property Get Name() As String
+        EnsureCurrent
+        Name = FileSystemTools.GetFileName(mPath)
+    End Property
+    Public Property Let Name(ByVal newName As String)
+        mPath = FileSystemTools.Rename(mPath, newName)
+    End Property
+
+    ' DefaultMember: a bare Folder reference in a string context yields its path.
+    [DefaultMember]
+    [Description("Returns the path for a specified folder.")]
+    Public Property Get Path() As String
+        EnsureCurrent
+        Path = mPath
+    End Property
+
+    ' Nothing (not an error) at a root - GetParentFolderName returns "" for both
+    ' "C:\" and a UNC root, and that empty string is the signal.
+    [Description("The parent Folder, or Nothing for a root folder.")]
+    Public Property Get ParentFolder() As Folder
+        EnsureCurrent
+        Dim p As String
+        p = FileSystemTools.GetParentFolderName(mPath)
+        If Len(p) = 0 Then Exit Property              ' root has no parent
+        Set ParentFolder = FileSystemTools.GetFolder(p)
+    End Property
+
+    [Description("Returns the drive letter of the drive where the specified folder resides.")]
+    Public Property Get Drive() As Drive
+        EnsureCurrent
+        Set Drive = FileSystemTools.GetDrive(FileSystemTools.GetDriveName(mPath))
+    End Property
+
+    ' Compares this path against its own drive spec. Both forms are accepted
+    ' because GetDriveName returns no trailing separator ("C:", "\\server\share")
+    ' while an absolute root path carries one ("C:\").
+    ' The Len > 3 guard on the trim is what stops "C:\" being shortened to "C:";
+    ' a UNC root is longer than 3, so its trailing "\" is trimmed and it matches
+    ' the first comparison instead.
+    [Description("True if this folder is the root of its drive.")]
+    Public Property Get IsRootFolder() As Boolean
+        EnsureCurrent
+        Dim root As String, me_ As String
+        root = FileSystemTools.GetDriveName(mPath)               ' "C:" or "\\server\share"
+        me_ = mPath
+        Do While Len(me_) > 3 And Right$(me_, 1) = "\"
+            me_ = Left$(me_, Len(me_) - 1)
+        Loop
+        IsRootFolder = (StrComp(me_, root, vbTextCompare) = 0) Or _
+                       (StrComp(me_, root & "\", vbTextCompare) = 0)
+    End Property
+
+    '======================================================================
+    ' Stat fields
+    '
+    ' All four are served from the cache that EnsureCurrent has just refreshed -
+    ' i.e. they are one stat old at most, which is to say current.
+    '======================================================================
+
+    [Description("Returns the date and time when a specified folder was created.")]
+    Public Property Get DateCreated() As Date
+        EnsureCurrent
+        DateCreated = mCreated
+    End Property
+
+    [Description("Returns the date and time when a specified folder was last modified.")]
+    Public Property Get DateLastModified() As Date
+        EnsureCurrent
+        DateLastModified = mModified
+    End Property
+
+    [Description("Returns the date and time when a specified folder was last accessed.")]
+    Public Property Get DateLastAccessed() As Date
+        EnsureCurrent
+        DateLastAccessed = mAccessed
+    End Property
+
+    ' THE EXPENSIVE ONE: walks the entire subtree on EVERY read, not a cached
+    ' field. On a large tree that is seconds. Assign it once; never re-read it in
+    ' a loop.
+    '
+    ' DELIBERATE DEVIATION FROM FSO. Scripting.FileSystemObject FOLLOWS directory
+    ' reparse points; we skip them. Measured against the FSO oracle: a folder
+    ' holding 1500 bytes plus a junction to one of its own subfolders reports
+    ' 1500 here and 2500 under FSO - it counted the target twice.
+    '
+    ' We deviate because FSO's behaviour is unsafe, not merely different:
+    '   * a junction pointing at an ancestor makes FSO recurse until it dies;
+    '   * a size that changes with the number of junctions pointing into the tree
+    '     is not measuring anything;
+    '   * Explorer and dir skip reparse points too - FSO is the outlier (it
+    '     predates them: FSO shipped in 1996, NTFS junctions in Windows 2000).
+    '
+    ' Consequence to be aware of: this reports what physically LIVES here, not what
+    ' is REACHABLE from here. Two sibling folders' sizes therefore need not sum to
+    ' their parent's if a junction spans them.
+    [Description("Total size in bytes of all files in this folder and its subfolders. Directory reparse points (junctions, symlinks) are NOT followed - this deviates from Scripting.FileSystemObject, which follows them and can therefore double-count or recurse infinitely. Computed on demand: it walks the whole subtree on every read.")]
+    Public Property Get Size() As LongLong
+        EnsureCurrent
+        Size = FolderSize(mPath)
+    End Property
+    
+    ' Get returns the file system's full attribute set, including bits Windows
+    ' manages and will not let you write (Directory, ReparsePoint, Compressed,
+    ' Encrypted...). Let applies only the settable subset - FSTShared.SanitizeAttrs
+    ' masks the rest away.
+    '
+    ' The round trip IS a no-op, despite that mask: SetFileAttributesW ignores the
+    ' unsettable bits anyway, so dropping them changes nothing on disk. Reading
+    ' Attributes, flipping one bit and writing it back is therefore safe.
+    '
+    ' Two behaviours worth knowing before writing:
+    '   * Normal DOMINATES. Passing Normal (alone or OR'd with anything) clears
+    '     every settable attribute - it means "no attributes", not "an attribute".
+    '   * The write REPLACES the settable set; it does not merge. To flip one bit,
+    '     read-modify-write, or use SetAttribute below.
+    [Description("Sets or returns the attributes of a specified folder.")]
+    Public Property Get Attributes() As FileAttribute
+        EnsureCurrent
+        Attributes = mAttrs
+    End Property
+    Public Property Let Attributes(ByVal value As FileAttribute)
+        If value = faNoChange Then Exit Property
+        EnsureCurrent                      ' fail-fast with 76 if gone, before attempting the set
+        FSTShared.SetPathAttributes mPath, value
+        Refresh                            ' re-stat: mAttrs mirrors disk
+    End Property
+    
+    [Description("Sets or clears a single attribute, leaving the others untouched. Only settable attributes have any effect (ReadOnly, Hidden, System, Archive, Temporary, NotContentIndexed).")]
+    Public Sub SetAttribute(ByVal attr As FileAttribute, ByVal state As Boolean)
+        EnsureCurrent
+        Dim v As Long
+        v = mAttrs And FSTShared.SETTABLE_ATTRS          ' current settable set
+        If state Then v = v Or attr Else v = v And Not attr
+        FSTShared.SetPathAttributes mPath, v             ' re-sanitizes; Normal-dominance applies
+        Refresh
+    End Sub
+
+    [Description("True if the specified attribute is set.")]
+    Public Property Get HasAttribute(ByVal attr As FileAttribute) As Boolean
+        EnsureCurrent
+        HasAttribute = ((mAttrs And attr) <> 0)
+    End Property
+    
+    [Description("Returns the folder's 8.3 short path, or the full path unchanged when no short name is available - which includes volumes with 8.3 name generation disabled and paths longer than 260 characters. Compare the result with Path to tell whether shortening actually occurred.")]
+    Public Property Get ShortPath() As String
+        EnsureCurrent
+        ShortPath = FSTShared.GetShortPath(mPath)
+    End Property
+
+    [Description("Returns the folder's 8.3 short name, or the normal folder name unchanged when no short name is available - which includes volumes with 8.3 name generation disabled and paths longer than 260 characters. Compare the result with Name to tell whether shortening actually occurred.")]
+    Public Property Get ShortName() As String
+        EnsureCurrent
+        ShortName = FileSystemTools.GetFileName(FSTShared.GetShortPath(mPath))
+    End Property
+
+    [Description("Returns the shell's type description for the folder (e.g. ""File folder""), the same string Explorer and Scripting.FileSystemObject's Folder.Type show. Falls back to a generic description when the shell is unavailable, and for paths longer than 260 characters, which the shell APIs do not support.")]
+    Public Property Get Type() As String
+        EnsureCurrent
+        Type = FileSystemTools.GetFileType(mPath)
+        ' GetFileType's fallback is file-oriented: with no extension it yields "File",
+        ' which is plainly wrong for a folder. Substitute FSO's own string for the
+        ' cases where the shell couldn't answer (unavailable, or a >260 path).
+        If Type = "File" Then Type = "File folder"
+    End Property
+    
+    '======================================================================
+    ' Children
+    '
+    ' Both enumerate with includeHidden:=True, includeSystem:=True - FSO shows
+    ' everything, and so do we. That is a deliberate deviation from
+    ' FileSystemTools.GetFilePaths, whose defaults EXCLUDE both.
+    ' Both build the whole collection eagerly. A directory with a very large number
+    ' of entries costs one object per entry, up front.
+    '======================================================================
+
+    [Description("A Files collection of every file in this folder (including hidden/system, FSO-style).")]
+    Public Property Get Files() As Files
+        EnsureCurrent
+        Dim out As New Files
+        out.Init EnumChildren(mPath, wantFolders:=False, includeHidden:=True, includeSystem:=True)     ' wantFolders:=False
+        Set Files = out
+    End Property
+
+    [Description("A Folders collection of every immediate subfolder.")]
+    Public Property Get SubFolders() As Folders
+        EnsureCurrent
+        Dim out As New Folders
+        out.Init EnumChildren(mPath, wantFolders:=True, includeHidden:=True, includeSystem:=True)      ' wantFolders:=True
+        Set SubFolders = out
+    End Property
+    
+    '======================================================================
+    ' Operations
+    '
+    ' Note which ones re-point this object and which leave it dangling:
+    '   Move / Rename / Name Let -> mPath is updated; the object stays valid.
+    '   Copy                     -> this object is unaffected (the COPY is not
+    '                               returned; call GetFolder on the destination).
+    '   Delete                   -> the object is now stale. Every subsequent
+    '                               property read raises 76 via EnsureCurrent.
+    '                               That is by design, not an oversight.
+    '======================================================================
+
+    [Description("Copies this folder (and contents) to the destination.")]
+    Public Sub Copy(ByVal destination As String, Optional ByVal overwrite As Boolean = True)
+        EnsureCurrent
+        FileSystemTools.CopyFolder mPath, destination, overwrite
+    End Sub
+
+    [Description("Moves this folder, then re-points this object at the new location.")]
+    Public Sub Move(ByVal destination As String)
+        EnsureCurrent
+        mPath = FileSystemTools.MoveFolder(mPath, destination)   ' returns the RESOLVED new path
+        Refresh
+    End Sub
+
+    ' No EnsureCurrent: FileSystemTools.Rename resolves the path and raises 53 itself
+    ' if the folder is gone, so the pre-check would be redundant. Same reasoning as
+    ' the Name Let, which this shares an implementation with.
+    [Description("Renames the folder. The new name must be a bare name, or a path that resolves to the same folder as the source — it cannot move the item to a different folder. Wildcards are not permitted, and the destination must not already exist.")]
+    Public Sub Rename(ByVal newName As String)
+        mPath = FileSystemTools.Rename(mPath, newName)
+    End Sub
+
+    [Description("Deletes this folder and its contents.")]
+    Public Sub Delete(Optional ByVal force As Boolean = False)
+        EnsureCurrent
+        FileSystemTools.DeleteFolder mPath, force
+    End Sub
+
+    [Description("Creates (or overwrites) a text file in this folder and returns a TextStream open for writing.")]
+    Public Function CreateTextFile(ByVal fileName As String, _
+        Optional ByVal overwrite As Boolean = True, _
+        Optional ByVal encoding As TextEncoding = encUtf8, _
+        Optional ByVal lineEnding As NewlineType = nlWindows) As TextStream
+        EnsureCurrent
+        Set CreateTextFile = FileSystemTools.CreateTextFile(FileSystemTools.BuildPath(mPath, fileName), overwrite, encoding, lineEnding)
+    End Function
+
+    '======================================================================
+    ' Enumeration + size helpers
+    '
+    
+    ' Single directory walk for both Files and SubFolders. wantFolders selects
+    ' which entry type is kept and, with it, which kind of object is built - the
+    ' only two things that ever differed between the old EnumFileObjects and
+    ' EnumFolderObjects, which is why they are now one function.
+    '
+    ' Returns a name-keyed Collection of File or Folder objects (immediate children
+    ' only - no recursion). An unreadable or empty directory yields an empty
+    ' collection, not an error.
+    '
+    ' Error discipline: On Error GoTo CleanUp, close the handle, THEN re-raise. Any
+    ' new exit path must go through CleanUp or the find handle leaks.
+    '
+    ' The efficiency that matters: WIN32_FIND_DATAW already carries the attributes,
+    ' size and all three timestamps, so N children cost ONE directory walk rather
+    ' than N stats.
+    Private Function EnumChildren(ByVal folderPath As String, ByVal wantFolders As Boolean, _
+                                  ByVal includeHidden As Boolean, ByVal includeSystem As Boolean) As Collection
+        Dim out As New Collection
+        Dim ffd As WIN32_FIND_DATAW
+        Dim hFind As LongPtr
+        Dim nm As String, full As String
+        Dim isDir As Boolean
+
+        Dim e As Long
+        hFind = FindFirstFileW(StrPtr(FSTShared.EnsureTrailingBackslash(folderPath) & "*"), ffd)
+        e = Err.LastDllError
+        If hFind = INVALID_HANDLE_VALUE Then
+            FSTShared.IsEmptySearch e, IIf(wantFolders, "Folder.SubFolders", "Folder.Files"), folderPath
+            Set EnumChildren = out
+            Exit Function
+        End If
+
+        On Error GoTo CleanUp
+        Do
+            isDir = ((ffd.dwFileAttributes And FILE_ATTRIBUTE_DIRECTORY) <> 0)
+            If isDir = wantFolders Then               ' keep only the requested type
+                nm = FSTShared.FindDataFileName(ffd)
+                If nm <> "." And nm <> ".." Then      ' skip the self/parent entries
+                    If FSTShared.IncludeByAttr(ffd.dwFileAttributes, includeHidden, includeSystem) Then
+                        full = FSTShared.EnsureTrailingBackslash(folderPath) & nm
+                        ' Keyed by name so Files("readme.txt") / SubFolders("bin")
+                        ' work. AddKeyed falls back to an unkeyed add on a clash
+                        ' rather than aborting the walk.
+                        If wantFolders Then
+                            FSTShared.AddKeyed out, MakeFolderObject(full, ffd.dwFileAttributes, _
+                                FSTShared.FileTimeToDate(ffd.ftCreationTime), _
+                                FSTShared.FileTimeToDate(ffd.ftLastWriteTime), _
+                                FSTShared.FileTimeToDate(ffd.ftLastAccessTime)), nm
+                        Else
+                            FSTShared.AddKeyed out, MakeFileObject(full, ffd.dwFileAttributes, _
+                                FSTShared.SizeFromHL(ffd.nFileSizeHigh, ffd.nFileSizeLow), _
+                                FSTShared.FileTimeToDate(ffd.ftCreationTime), _
+                                FSTShared.FileTimeToDate(ffd.ftLastWriteTime), _
+                                FSTShared.FileTimeToDate(ffd.ftLastAccessTime)), nm
+                        End If
+                    End If
+                End If
+            End If
+        Loop While FindNextFileW(hFind, ffd) <> 0
+
+    CleanUp:
+        If hFind <> 0 And hFind <> INVALID_HANDLE_VALUE Then FindClose hFind
+        Set EnumChildren = out                        ' assign BEFORE any re-raise
+        If Err.Number <> 0 Then Err.Raise Err.Number, Err.Source, Err.Description
+    End Function
+
+    ' Thin factories. They exist so the enumerators can inject stat data they
+    ' already hold, since Init is Friend and cannot be reached from outside.
+    Private Function MakeFileObject(ByVal path As String, ByVal attrs As Long, ByVal size As LongLong, ByVal created As Date, ByVal modified As Date, ByVal accessed As Date) As File
+        Dim f As File
+        Set f = New File
+        f.Init path, attrs, size, created, modified, accessed
+        Set MakeFileObject = f
+    End Function
+
+    Private Function MakeFolderObject(ByVal path As String, ByVal attrs As Long, ByVal created As Date, ByVal modified As Date, ByVal accessed As Date) As Folder
+        Dim d As Folder
+        Set d = New Folder
+        d.Init path, attrs, created, modified, accessed
+        Set MakeFolderObject = d
+    End Function
+
+    ' Recursive subtree total, in bytes.
+    '
+    ' REPARSE POINTS ARE SKIPPED for directories, and that is load-bearing: a
+    ' junction or symlink pointing at an ancestor would otherwise recurse forever.
+    ' It also means the total is the size of what physically lives here, not of
+    ' everything reachable from here - two folders can therefore report sizes that
+    ' do not sum to their parent's.
+    '
+    ' Note the asymmetry: a reparse-point FILE (a cloud placeholder, say) still has
+    ' its LOGICAL size counted, even though its bytes may not be on this disk.
+    ' That matches Explorer, and there is no cheap way to do better from FIND_DATA.
+    '
+    ' No depth limit and no cycle detection beyond the reparse check - a genuinely
+    ' pathological tree could exhaust the stack.
+    Private Function FolderSize(ByVal folderPath As String) As LongLong
+        Dim total As LongLong
+        Dim ffd As WIN32_FIND_DATAW
+        Dim hFind As LongPtr
+        Dim nm As String, full As String
+
+        Dim e As Long
+        hFind = FindFirstFileW(StrPtr(FSTShared.EnsureTrailingBackslash(folderPath) & "*"), ffd)
+        e = Err.LastDllError
+        If hFind = INVALID_HANDLE_VALUE Then
+            FSTShared.IsEmptySearch e, "Folder.Size", folderPath   ' raises 70 on a denied subtree
+            Exit Function                                       ' truly empty -> contributes 0
+        End If
+
+        On Error GoTo CleanUp
+        Do
+            nm = FSTShared.FindDataFileName(ffd)
+            If nm <> "." And nm <> ".." Then
+                full = FSTShared.EnsureTrailingBackslash(folderPath) & nm
+                If (ffd.dwFileAttributes And FILE_ATTRIBUTE_DIRECTORY) <> 0 Then
+                    If (ffd.dwFileAttributes And FILE_ATTRIBUTE_REPARSE_POINT) = 0 Then
+                        total = total + FolderSize(full)        ' recurse into real dirs only
+                    End If
+                Else
+                    ' Unlike Files/SubFolders, hidden and system files are counted
+                    ' unconditionally here - no IncludeByAttr filter. A total that
+                    ' omitted them would not be a size.
+                    total = total + FSTShared.SizeFromHL(ffd.nFileSizeHigh, ffd.nFileSizeLow)
+                End If
+            End If
+        Loop While FindNextFileW(hFind, ffd) <> 0
+
+    CleanUp:
+        If hFind <> 0 And hFind <> INVALID_HANDLE_VALUE Then FindClose hFind
+        FolderSize = total                            ' assign BEFORE any re-raise
+        If Err.Number <> 0 Then Err.Raise Err.Number, Err.Source, Err.Description
+    End Function
+    
+    ' Re-stat, refresh cached fields, adopt true on-disk leaf casing; raise 76 if gone.
+    ' Root-safe: StatPath returns leaf="" for a drive root (fallback path), so the
+    ' Len(leaf) guard leaves mPath (e.g. "C:\") untouched.
+    '
+    ' This is the class's single point of truth - see the header. It is called by
+    ' EVERY public member (bar Rename and the Name Let, which validate for
+    ' themselves), which is what makes a Folder object live rather than a snapshot,
+    ' and what makes a deleted folder raise 76 on next use rather than lie.
+    ' The size out-param is discarded: a folder's size is not a stat field, it is a
+    ' subtree walk (see FolderSize).
+    Private Sub EnsureCurrent()
+        Dim ignoreSize As LongLong
+        Dim leaf As String
+        If Not FSTShared.StatPath(mPath, mAttrs, ignoreSize, mCreated, mModified, mAccessed, leaf) Then
+            Err.Raise 76, "Folder", "Path not found: " & mPath
+        End If
+        If Len(leaf) > 0 Then
+            mPath = FileSystemTools.BuildPath(FileSystemTools.GetParentFolderName(mPath), leaf)
+        End If
+    End Sub
+
+End Class

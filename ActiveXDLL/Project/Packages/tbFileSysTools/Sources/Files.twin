@@ -1,0 +1,57 @@
+' ==========================================================================
+' This file was automatically generated from the ActiveX DLL version source.
+' COM machinery stripped out for twinBASIC package.
+' ==========================================================================
+' ==========================================================================
+' Files
+'
+' A read-only wrapper around a Collection of File objects.
+'
+' Thin by design: it exists so that callers get an FSO-shaped Count / Item /
+' For Each surface instead of a raw VBA Collection, and so the collection cannot
+' be added to or removed from after construction.
+'
+' Built by Folder.Files, which enumerates one directory level and keys each entry
+' by FILE NAME including extension ("readme.txt"), so both Files("readme.txt") and
+' Files(1) work. Never New'd directly - Init is Friend.
+'
+' SNAPSHOT. The membership is fixed at the moment Folder.Files was called: files
+' created or deleted afterwards are not reflected. Read the property again to
+' re-enumerate. The File objects inside are individually live (each re-stats itself
+' on every property read), so a file deleted after enumeration will not vanish from
+' the collection - it will raise 53 when you touch it.
+'
+' Includes hidden and system files, matching FSO. Note this differs from
+' FileSystemTools.GetFilePaths, whose defaults EXCLUDE both.
+' ==========================================================================
+' MIT License - Copyright (c) 2026, GCUser99 (https://github.com/GCUser99)
+' ==========================================================================
+
+[Hidden(False)]
+[Description("A read-only collection of File objects, enumerable with For Each.")]
+Public Class Files
+    Option Explicit
+    
+    Private mItems As Collection                       ' File objects, keyed by name
+
+    Friend Sub Init(ByVal items As Collection)
+        Set mItems = items
+    End Sub
+    
+     [Description("Returns the number of File objects available.")]
+    Public Property Get Count() As Long
+        Count = mItems.Count
+    End Property
+
+    [DefaultMember]
+    [Description("Returns a specific File object by name or index.")]
+    Public Property Get Item(ByVal nameOrIndex As Variant) As File
+        Set Item = mItems(nameOrIndex)
+    End Property
+
+    [Enumerator]
+    [Hidden(True)]
+    Public Function NewEnum() As IUnknown
+        Set NewEnum = mItems.[_NewEnum]
+    End Function
+End Class

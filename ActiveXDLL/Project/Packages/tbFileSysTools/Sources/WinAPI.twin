@@ -1,0 +1,521 @@
+' ==========================================================================
+' This file was automatically generated from the ActiveX DLL version source.
+' COM machinery stripped out for twinBASIC package.
+' ==========================================================================
+Private Module WinAPI
+    
+    'The Windows API declarations used here are from Jon Johnson's WinDevLib tB package (https://github.com/fafalone/WinDevLib).
+    'This project was designed to function without this module if Jon Johnson's WinDevLib is referenced.
+
+    '/*
+    Public Declare PtrSafe Function GetLastError Lib "kernel32" () As Long
+    Public Declare PtrSafe Function GetFullPathNameW Lib "kernel32" (ByVal lpFileName As LongPtr, ByVal nBufferLength As Long, ByVal lpBuffer As LongPtr, lpFilePart As LongPtr) As Long
+    Public Declare PtrSafe Function GetCurrentDirectoryW Lib "kernel32" (ByVal nBufferLength As Long, ByVal lpBuffer As LongPtr) As Long
+    Public Declare PtrSafe Function SetCurrentDirectoryW Lib "kernel32" (ByVal lpPathName As LongPtr) As BOOL
+    Public Declare PtrSafe Function RemoveDirectoryW Lib "kernel32" (ByVal lpPathName As LongPtr) As BOOL
+    Public Declare PtrSafe Function FindFirstFileW Lib "kernel32" (ByVal lpFileName As LongPtr, ByRef lpFindFileData As WIN32_FIND_DATAW) As LongPtr
+    Public Declare PtrSafe Function FindNextFileW Lib "kernel32" (ByVal hFindFile As LongPtr, ByRef lpFindFileData As WIN32_FIND_DATAW) As Long
+    Public Declare PtrSafe Function FindClose Lib "kernel32" (ByVal hFindFile As LongPtr) As Long
+    Public Declare PtrSafe Function SetFileAttributesW Lib "kernel32" (ByVal lpFileName As LongPtr, ByVal dwFileAttributes As FILE_ATTRIBUTES) As BOOL
+    Public Declare PtrSafe Function GetFileAttributesW Lib "kernel32" (ByVal lpFileName As LongPtr) As FILE_ATTRIBUTES
+    Public Declare PtrSafe Function GetLogicalDrives Lib "kernel32" () As Long
+    Public Declare PtrSafe Function CopyFileExW Lib "kernel32" (ByVal lpExistingFileName As LongPtr, ByVal lpNewFileName As LongPtr, ByVal lpProgresRoutine As LongPtr, lpData As Any, pbCancel As BOOL, ByVal dwCopyFlags As CopyFileFlags) As BOOL
+    Public Declare PtrSafe Function MoveFileExW Lib "kernel32" (ByVal lpExistingFileName As LongPtr, ByVal lpNewFileName As LongPtr, ByVal dwFlags As MoveFileExFlags) As BOOL
+    Public Declare PtrSafe Function DeleteFileW Lib "kernel32" (ByVal lpFileName As LongPtr) As BOOL
+    Public Declare PtrSafe Sub SetLastError Lib "kernel32" (ByVal dwErrCode As Long)
+    Public Declare PtrSafe Function GetFileVersionInfoW Lib "version.dll" (ByVal lptstrFilename As LongPtr, ByVal dwhandle As Long, ByVal dwLen As Long, lpData As Any) As BOOL
+    Public Declare PtrSafe Function GetFileVersionInfoSizeW Lib "version.dll" (ByVal lptstrFilename As LongPtr, lpdwHandle As Long) As Long
+    Public Declare PtrSafe Function VerQueryValueW Lib "version.dll" (ByRef pBlock As Any, ByVal lpSubBlock As LongPtr, ByRef lplpBuffer As LongPtr, ByRef puLen As Long) As BOOL
+    Public Declare PtrSafe Sub CopyMemory Lib "kernel32" Alias "RtlMoveMemory" (Destination As Any, Source As Any, ByVal Length As LongPtr)
+    Public Declare PtrSafe Function CLSIDFromString Lib "ole32" (ByVal lpsz As LongPtr, ByRef lpclsid As UUID) As Long
+    Public Declare PtrSafe Function lstrlenW Lib "kernel32" (lpString As Any) As Long
+    Public Declare PtrSafe Sub CoTaskMemFree Lib "ole32" (ByVal pv As LongPtr)
+    Public Declare PtrSafe Function SHGetKnownFolderPath Lib "shell32" (rfid As UUID, ByVal dwFlags As KNOWN_FOLDER_FLAG, ByVal hToken As LongPtr, ppszPath As LongPtr) As Long
+    Public Declare PtrSafe Function SysReAllocStringW Lib "oleaut32" Alias "SysReAllocString" (ByVal pBSTR As LongPtr, Optional ByVal pszStrPtr As LongPtr) As Long
+    Public Declare PtrSafe Function PathRelativePathToW Lib "shlwapi" (ByVal pszPath As LongPtr, ByVal pszFrom As LongPtr, ByVal dwAttrFrom As FILE_ATTRIBUTES, ByVal pszTo As LongPtr, ByVal dwAttrTo As FILE_ATTRIBUTES) As BOOL
+    Public Declare PtrSafe Function GetFileAttributesExW Lib "kernel32" (ByVal lpFileName As LongPtr, ByVal fInfoLevelId As GET_FILEEX_INFO_LEVELS, ByRef lpFileInformation As Any) As BOOL
+    Public Declare PtrSafe Function FileTimeToLocalFileTime Lib "kernel32" (lpFileTime As FILETIME, lpLocalFileTime As FILETIME) As BOOL
+    Public Declare PtrSafe Function FileTimeToSystemTime Lib "kernel32" (lpFileTime As FILETIME, lpSystemTime As SYSTEMTIME) As BOOL
+    Public Declare PtrSafe Function GetShortPathNameW Lib "kernel32" (ByVal lpszLongPath As LongPtr, ByVal lpszShortPath As LongPtr, ByVal cchBuffer As Long) As Long
+    Public Declare PtrSafe Function CreateDirectoryW Lib "kernel32" (ByVal lpPathName As LongPtr, lpSecurityAttributes As SECURITY_ATTRIBUTES) As BOOL
+    Public Declare PtrSafe Function GetStdHandle Lib "kernel32" (ByVal nStdHandle As STD_HANDLES) As LongPtr
+    Public Declare PtrSafe Function SHGetFileInfoW Lib "shell32" (ByVal pszPath As Any, ByVal dwFileAttributes As Long, psfi As SHFILEINFOW, ByVal cbFileInfo As Long, ByVal uFlags As SHGFI_flags) As LongPtr
+    
+    Public Declare PtrSafe Function GetDriveTypeW Lib "kernel32" (ByVal lpRootPathName As LongPtr) As Long
+    Public Declare PtrSafe Function GetDiskFreeSpaceExW Lib "kernel32" (ByVal lpDirectoryName As LongPtr, ByRef lpFreeBytesAvailable As LongLong, ByRef lpTotalNumberOfBytes As LongLong, ByRef lpTotalNumberOfFreeBytes As LongLong) As Long
+    Public Declare PtrSafe Function GetVolumeInformationW Lib "kernel32" (ByVal lpRootPathName As LongPtr, ByVal lpVolumeNameBuffer As LongPtr, ByVal nVolumeNameSize As Long, ByRef lpVolumeSerialNumber As Long, ByRef lpMaximumComponentLength As Long, ByRef lpFileSystemFlags As Long, ByVal lpFileSystemNameBuffer As LongPtr, ByVal nFileSystemNameSize As Long) As Long
+    Public Declare PtrSafe Function SetVolumeLabelW Lib "kernel32" (ByVal lpRootPathName As LongPtr, ByVal lpVolumeName As LongPtr) As Long
+
+    Public Declare PtrSafe Function MultiByteToWideChar Lib "kernel32" (ByVal CodePage As Long, ByVal dwFlags As MBWC_Flags, ByVal lpMultiByteStr As LongPtr, ByVal cchMultiByte As Long, ByVal lpWideCharStr As LongPtr, ByVal cchWideChar As Long) As Long
+    Public Declare PtrSafe Function WideCharToMultiByte Lib "kernel32" (ByVal CodePage As Long, ByVal dwFlags As WCMB_Flags, ByVal lpWideCharStr As LongPtr, ByVal cchWideChar As Long, ByVal lpMultiByteStr As LongPtr, ByVal cbMultiByte As Long, Optional ByVal lpDefaultChar As LongPtr, Optional lpUsedDefaultChar As BOOL) As Long
+    
+    Public Declare PtrSafe Function WriteFile Lib "kernel32" (ByVal hFile As LongPtr, lpBuffer As Any, ByVal nNumberOfBytesToWrite As Long, lpNumberOfBytesWritten As Long, lpOverlapped As OVERLAPPED) As BOOL
+    Public Declare PtrSafe Function ReadFile Lib "kernel32" (ByVal hFile As LongPtr, lpBuffer As Any, ByVal nNumberOfBytesToRead As Long, lpNumberOfBytesRead As Long, lpOverlapped As OVERLAPPED) As BOOL
+    Public Declare PtrSafe Function GetACP Lib "kernel32" () As Long
+    Public Declare PtrSafe Function GetCPInfo Lib "kernel32" (ByVal codePage As Long, ByRef lpCPInfo As CPINFO) As Long
+    
+    Public Declare PtrSafe Function CreateFileW Lib "kernel32" (ByVal lpFileName As LongPtr, ByVal dwDesiredAccess As Long, ByVal dwShareMode As FileShareMode, lpSecurityAttributes As SECURITY_ATTRIBUTES, ByVal dwCreationDisposition As CreateFileDisposition, ByVal dwFlagsAndAttributes As Long, ByVal hTemplateFile As LongPtr) As LongPtr
+    Public Declare PtrSafe Function CloseHandle Lib "kernel32" (ByVal hObject As LongPtr) As BOOL
+    
+    Public Declare PtrSafe Function WNetGetConnectionW Lib "mpr.dll" (ByVal lpLocalName As LongPtr, ByVal lpRemoteName As LongPtr, lpnLength As Long) As Long
+    
+    Public Enum CreateFileDisposition
+        CREATE_NEW = 1
+        CREATE_ALWAYS = 2
+        OPEN_EXISTING = 3
+        OPEN_ALWAYS = 4
+        TRUNCATE_EXISTING = 5
+    End Enum
+    
+    Public Enum FileShareMode
+        FILE_SHARE_READ = &H00000001
+        FILE_SHARE_WRITE = &H00000002
+        FILE_SHARE_DELETE = &H00000004
+    End Enum
+    
+    Public Type CPINFO
+        MaxCharSize As Long
+        DefaultChar(0 To 1) As Byte
+        LeadByte(0 To 11) As Byte
+    End Type
+    
+    Public Type OVERLAPPED
+        Internal As LongPtr
+        InternalHigh As LongPtr
+        #If Win64 Then
+        OffsetsOrPtr As LongLong
+        #Else
+        OffsetOrPtr As Long
+        OffsetHigh As Long
+        #End If
+        hEvent As LongPtr
+    End Type
+    
+    Public Const ERROR_NO_UNICODE_TRANSLATION As Long = &H459
+    Public Const ERROR_INVALID_PARAMETER As Long = &H57
+    
+    Public Enum BOOL
+        CFALSE
+        CTRUE
+    End Enum
+    
+    Public Enum MBWC_Flags
+        MB_PRECOMPOSED = &H1
+        MB_COMPOSITE = &H2
+        MB_USEGLYPHCHARS = &H4
+        MB_ERR_INVALID_CHARS = &H8
+    End Enum
+    
+    Public Enum WCMB_Flags
+        WC_COMPOSITECHECK = &H00000200  ' convert composite to precomposed
+        WC_DISCARDNS = &H00000010  ' discard non-spacing chars          // Used with WC_COMPOSITECHECK
+        WC_SEPCHARS = &H00000020  ' generate separate chars            // Used with WC_COMPOSITECHECK
+        WC_DEFAULTCHAR = &H00000040  ' replace w/ default char            // Used with WC_COMPOSITECHECK
+        WC_ERR_INVALID_CHARS = &H00000080  ' error for invalid chars
+        WC_NO_BEST_FIT_CHARS = &H00000400  ' do not use best fit chars
+    End Enum
+    
+    Public Const ERROR_SUCCESS As Long = 0
+    Public Const ERROR_NO_MORE_ITEMS As Long = 259
+        
+    Public Enum RegKeyspace
+        HKEY_CLASSES_ROOT = &H80000000
+        HKEY_CURRENT_USER = &H80000001
+        HKEY_LOCAL_MACHINE = &H80000002
+        HKEY_USERS = &H80000003
+        HKEY_PERFORMANCE_DATA = &H80000004
+        HKEY_PERFORMANCE_TEXT = &H80000050
+        HKEY_PERFORMANCE_NLSTEXT = &H80000060
+        HKEY_CURRENT_CONFIG = &H80000005
+        HKEY_DYN_DATA = &H80000006
+        HKEY_CURRENT_USER_LOCAL_SETTINGS = &H80000007
+    End Enum
+        
+    Public Enum RegOptions
+        REG_OPTION_RESERVED = (&H00000000)  ' Parameter is reserved
+        REG_OPTION_NON_VOLATILE = (&H00000000)  ' Key is preserved when system is rebooted
+        REG_OPTION_VOLATILE = (&H00000001)  ' Key is not preserved when system is rebooted
+        REG_OPTION_CREATE_LINK = (&H00000002)  ' Created key is a symbolic link
+        REG_OPTION_BACKUP_RESTORE = (&H00000004)  ' open for backup or restore special access rules privilege required
+        REG_OPTION_OPEN_LINK = (&H00000008)  ' Open symbolic link
+        REG_OPTION_DONT_VIRTUALIZE = (&H00000010)  ' Disable Open/Read/Write virtualization for this open and the resulting handle.
+        REG_LEGAL_OPTION = (REG_OPTION_RESERVED Or REG_OPTION_NON_VOLATILE Or REG_OPTION_VOLATILE Or REG_OPTION_CREATE_LINK Or REG_OPTION_BACKUP_RESTORE Or REG_OPTION_OPEN_LINK Or REG_OPTION_DONT_VIRTUALIZE)
+        REG_OPEN_LEGAL_OPTION = (REG_OPTION_RESERVED Or REG_OPTION_BACKUP_RESTORE Or REG_OPTION_OPEN_LINK Or REG_OPTION_DONT_VIRTUALIZE)
+    End Enum
+        
+    Public Enum REGSAM
+        KEY_QUERY_VALUE = (&H0001)
+        KEY_SET_VALUE = (&H0002)
+        KEY_CREATE_SUB_KEY = (&H0004)
+        KEY_ENUMERATE_SUB_KEYS = (&H0008)
+        KEY_NOTIFY = (&H0010)
+        KEY_CREATE_LINK = (&H0020)
+        KEY_WOW64_32KEY = (&H0200)
+        KEY_WOW64_64KEY = (&H0100)
+        KEY_WOW64_RES = (&H0300)
+        KEY_READ = ((STANDARD_RIGHTS_READ Or KEY_QUERY_VALUE Or KEY_ENUMERATE_SUB_KEYS Or KEY_NOTIFY) And (Not SYNCHRONIZE))
+        KEY_WRITE = ((STANDARD_RIGHTS_WRITE Or KEY_SET_VALUE Or KEY_CREATE_SUB_KEY) And (Not SYNCHRONIZE))
+        KEY_EXECUTE = ((KEY_READ) And (Not SYNCHRONIZE))
+        KEY_ALL_ACCESS = ((STANDARD_RIGHTS_ALL Or KEY_QUERY_VALUE Or KEY_SET_VALUE Or KEY_CREATE_SUB_KEY Or KEY_ENUMERATE_SUB_KEYS Or KEY_NOTIFY Or KEY_CREATE_LINK) And (Not SYNCHRONIZE))
+    End Enum
+        
+    Public Enum StandardAccessTypes
+        DELETE = (&H00010000)
+        READ_CONTROL = (&H00020000)
+        WRITE_DAC = (&H00040000)
+        WRITE_OWNER = (&H00080000)
+        SYNCHRONIZE = (&H00100000)
+        STANDARD_RIGHTS_REQUIRED = (&H000F0000)
+        STANDARD_RIGHTS_READ = (READ_CONTROL)
+        STANDARD_RIGHTS_WRITE = (READ_CONTROL)
+        STANDARD_RIGHTS_EXECUTE = (READ_CONTROL)
+        STANDARD_RIGHTS_ALL = (&H001F0000)
+        SPECIFIC_RIGHTS_ALL = (&H0000FFFF&)
+        ACCESS_SYSTEM_SECURITY = (&H01000000)
+        MAXIMUM_ALLOWED = (&H02000000)
+    End Enum
+
+    Public Enum REGTYPES
+        REG_NONE = 0
+        REG_SZ = 1
+        REG_EXPAND_SZ = 2
+        REG_BINARY = 3
+        REG_DWORD = 4
+        REG_DWORD_BIG_ENDIAN = 5
+        REG_DWORD_LITTLE_ENDIAN = 4
+        REG_LINK = 6
+        REG_MULTI_SZ = 7
+        REG_RESOURCE_LIST = 8
+        REG_FULL_RESOURCE_DESCRIPTOR = 9
+        REG_RESOURCE_REQUIREMENTS_LIST = &HA
+        REG_QWORD = &HB
+        REG_QWORD_LITTLE_ENDIAN = &HB
+    End Enum
+        
+    Public Type SHFILEINFOW   ' shfi
+        hIcon As LongPtr
+        iIcon As Long
+        dwAttributes As SFGAOF
+        szDisplayName(MAX_PATH - 1) As Integer
+        szTypeName(79) As Integer
+    End Type
+
+    Public Enum SHGFI_flags
+        SHGFI_LARGEICON = &H0            ' sfi.hIcon is large icon
+        SHGFI_SMALLICON = &H1            ' sfi.hIcon is small icon
+        SHGFI_OPENICON = &H2              ' sfi.hIcon is open icon
+        SHGFI_SHELLICONSIZE = &H4      ' sfi.hIcon is shell size (not system size), rtns BOOL
+        SHGFI_PIDL = &H8                        ' pszPath is pidl, rtns BOOL
+        ' Indicates that the function should not attempt to access the file specified by pszPath.
+        ' Rather, it should act as if the file specified by pszPath exists with the file attributes
+        ' passed in dwFileAttributes. This flag cannot be combined with the SHGFI_ATTRIBUTES,
+        ' SHGFI_EXETYPE, or SHGFI_PIDL flags <---- !!!
+        SHGFI_USEFILEATTRIBUTES = &H10   ' pretend pszPath exists, rtns BOOL
+        SHGFI_ADDOVERLAYS = &H20
+        SHGFI_OVERLAYINDEX = &H40 'Return overlay index in upper 8 bits of iIcon.
+        SHGFI_ICON = &H100                    ' fills sfi.hIcon, rtns BOOL, use DestroyIcon
+        SHGFI_DISPLAYNAME = &H200    ' isf.szDisplayName is filled (SHGDN_NORMAL), rtns BOOL
+        SHGFI_TYPENAME = &H400          ' isf.szTypeName is filled, rtns BOOL
+        SHGFI_ATTRIBUTES = &H800         ' rtns IShellFolder::GetAttributesOf  SFGAO_* flags
+        SHGFI_ICONLOCATION = &H1000   ' fills sfi.szDisplayName with filename containing the icon, rtns BOOL
+        SHGFI_EXETYPE = &H2000            ' rtns two ASCII chars of exe type
+        SHGFI_SYSICONINDEX = &H4000   ' sfi.iIcon is sys il icon index, rtns hImagelist
+        SHGFI_LINKOVERLAY = &H8000&    ' add shortcut overlay to sfi.hIcon
+        SHGFI_SELECTED = &H10000        ' sfi.hIcon is selected icon
+        SHGFI_ATTR_SPECIFIED = &H20000    ' get only attributes specified in sfi.dwAttributes
+    End Enum
+        
+    Public Enum SFGAOF
+        SFGAO_CANCOPY = DROPEFFECT_COPY  ' Objects can be copied    (0x1)
+        SFGAO_CANMOVE = DROPEFFECT_MOVE  ' Objects can be moved     (0x2)
+        SFGAO_CANLINK = DROPEFFECT_LINK  ' Objects can be linked    (0x4)
+        SFGAO_STORAGE = &H00000008  ' supports BindToObject(IID_IStorage)
+        SFGAO_CANRENAME = &H00000010  ' Objects can be renamed
+        SFGAO_CANDELETE = &H00000020  ' Objects can be deleted
+        SFGAO_HASPROPSHEET = &H00000040  ' Objects have property sheets
+        SFGAO_DROPTARGET = &H00000100  ' Objects are drop target
+        SFGAO_CAPABILITYMASK = &H00000177
+        SFGAO_PLACEHOLDER = &H00000800  ' File or folder is not fully present and recalled on open or access
+        SFGAO_SYSTEM = &H00001000  ' System object
+        SFGAO_ENCRYPTED = &H00002000  ' Object is encrypted (use alt color)
+        SFGAO_ISSLOW = &H00004000  ' 'Slow' object
+        SFGAO_GHOSTED = &H00008000&  ' Ghosted icon
+        SFGAO_LINK = &H00010000  ' Shortcut (link)
+        SFGAO_SHARE = &H00020000  ' Shared
+        SFGAO_READONLY = &H00040000  ' Read-only
+        SFGAO_HIDDEN = &H00080000  ' Hidden object
+        SFGAO_DISPLAYATTRMASK = &H000FC000
+        SFGAO_FILESYSANCESTOR = &H10000000  ' May contain children with SFGAO_FILESYSTEM
+        SFGAO_FOLDER = &H20000000  ' Support BindToObject(IID_IShellFolder)
+        SFGAO_FILESYSTEM = &H40000000  ' Is a win32 file system object (file/folder/root)
+        SFGAO_HASSUBFOLDER = &H80000000  ' May contain children with SFGAO_FOLDER (may be slow)
+        SFGAO_CONTENTSMASK = &H80000000
+        SFGAO_VALIDATE = &H01000000  ' Invalidate cached information (may be slow)
+        SFGAO_REMOVABLE = &H02000000  ' Is this removeable media?
+        SFGAO_COMPRESSED = &H04000000  ' Object is compressed (use alt color)
+        SFGAO_BROWSABLE = &H08000000  ' Supports IShellFolder, but only implements CreateViewObject() (non-folder view)
+        SFGAO_NONENUMERATED = &H00100000  ' Is a non-enumerated object (should be hidden)
+        SFGAO_NEWCONTENT = &H00200000  ' Should show bold in explorer tree
+        SFGAO_CANMONIKER = &H00400000  ' Obsolete
+        SFGAO_HASSTORAGE = &H00400000  ' Obsolete
+        SFGAO_STREAM = &H00400000  ' Supports BindToObject(IID_IStream)
+        SFGAO_STORAGEANCESTOR = &H00800000  ' May contain children with SFGAO_STORAGE or SFGAO_STREAM
+        SFGAO_STORAGECAPMASK = &H70C50008  ' For determining storage capabilities, ie for open/save semantics
+        SFGAO_PKEYSFGAOMASK = &H81044000  ' Attributes that are masked out for PKEY_SFGAOFlags because they are considered to cause slow calculations or lack context (SFGAO_VALIDATE | SFGAO_ISSLOW | SFGAO_HASSUBFOLDER and others)
+    End Enum
+        
+    Public Enum DROPEFFECTS
+        DROPEFFECT_NONE = 0
+        DROPEFFECT_COPY = 1
+        DROPEFFECT_MOVE = 2
+        DROPEFFECT_LINK = 4
+        DROPEFFECT_SCROLL = &H80000000
+    End Enum
+        
+    Public Type SECURITY_ATTRIBUTES
+        nLength As Long
+        lpSecurityDescriptor As LongPtr
+        bInheritHandle As Long
+    End Type
+        
+    Public Enum KNOWN_FOLDER_FLAG
+        KF_FLAG_DEFAULT = &H00000000
+        KF_FLAG_SIMPLE_IDLIST = &H00000100
+        KF_FLAG_NOT_PARENT_RELATIVE = &H00000200
+        KF_FLAG_DEFAULT_PATH = &H00000400
+        KF_FLAG_INIT = &H00000800
+        KF_FLAG_NO_ALIAS = &H00001000
+        KF_FLAG_DONT_UNEXPAND = &H00002000
+        KF_FLAG_DONT_VERIFY = &H00004000
+        KF_FLAG_CREATE = &H00008000&
+        KF_FLAG_NO_APPCONTAINER_REDIRECTION = &H00010000
+        KF_FLAG_NO_PACKAGE_REDIRECTION = &H00010000
+        KF_FLAG_FORCE_PACKAGE_REDIRECTION = &H00020000
+        KF_FLAG_FORCE_APPCONTAINER_REDIRECTION = &H00020000
+        KF_FLAG_RETURN_FILTER_REDIRECTION_TARGET = &H00040000
+        KF_FLAG_FORCE_APP_DATA_REDIRECTION = &H00080000
+        KF_FLAG_ALIAS_ONLY = &H80000000
+    End Enum
+        
+    Public Enum MoveFileExFlags
+        MOVEFILE_REPLACE_EXISTING = &H00000001
+        MOVEFILE_COPY_ALLOWED = &H00000002
+    End Enum
+
+    Public Enum CopyFileFlags
+        COPY_FILE_FAIL_IF_EXISTS = &H00000001
+    End Enum
+        
+    Public Type VS_FIXEDFILEINFO
+        dwSignature As Long
+        dwStrucVersionl As Integer   ' e.g. = &h0000 = 0
+        dwStrucVersionh As Integer   ' e.g. = &h0042 = .42
+        dwFileVersionMSl As Integer   ' e.g. = &h0003 = 3
+        dwFileVersionMSh As Integer   ' e.g. = &h0075 = .75
+        dwFileVersionLSl As Integer   ' e.g. = &h0000 = 0
+        dwFileVersionLSh As Integer   ' e.g. = &h0031 = .31
+        dwProductVersionMSl As Integer   ' e.g. = &h0003 = 3
+        dwProductVersionMSh As Integer   ' e.g. = &h0010 = .1
+        dwProductVersionLSl As Integer   ' e.g. = &h0000 = 0
+        dwProductVersionLSh As Integer   ' e.g. = &h0031 = .31
+        dwFileFlagsMask As VersionFileFlags   ' = &h3F for version "0.42"
+        dwFileFlags As VersionFileFlags   ' e.g. VFF_DEBUG Or VFF_PRERELEASE
+        dwFileOS As VersionOSFlags   ' e.g. VOS_DOS_WINDOWS16
+        dwFileType As VersionFileTypes   ' e.g. VFT_DRIVER
+        dwFileSubtype As VersionFileSubTypes   ' e.g. VFT2_DRV_KEYBOARD
+        dwFileDateMS As Long   ' e.g. 0
+        dwFileDateLS As Long   ' e.g. 0
+    End Type
+        
+    Public Type VS_FIXEDFILEINFO_P
+        dwSignature As Long ' e.g. 0xfeef04bd 
+        dwStrucVersion As Long ' e.g. 0x00000042 = "0.42" 
+        dwFileVersionMS As Long ' e.g. 0x00030075 = "3.75" 
+        dwFileVersionLS As Long ' e.g. 0x00000031 = "0.31" 
+        dwProductVersionMS As Long ' e.g. 0x00030010 = "3.10" 
+        dwProductVersionLS As Long ' e.g. 0x00000031 = "0.31" 
+        dwFileFlagsMask As VersionFileFlags ' = 0x3F for version "0.42" 
+        dwFileFlags As VersionFileFlags ' e.g. VFF_DEBUG | VFF_PRERELEASE 
+        dwFileOS As VersionOSFlags ' e.g. VOS_DOS_WINDOWS16 
+        dwFileType As VersionFileTypes ' e.g. VFT_DRIVER 
+        dwFileSubtype As VersionFileSubTypes ' e.g. VFT2_DRV_KEYBOARD 
+        dwFileDateMS As Long ' e.g. 0 
+        dwFileDateLS As Long ' e.g. 0 
+    End Type
+        
+    Public Enum VersionFileFlags
+        VS_FF_DEBUG = &H00000001
+        VS_FF_PRERELEASE = &H00000002
+        VS_FF_PATCHED = &H00000004
+        VS_FF_PRIVATEBUILD = &H00000008
+        VS_FF_INFOINFERRED = &H00000010
+        VS_FF_SPECIALBUILD = &H00000020
+    End Enum
+        
+    Public Enum VersionOSFlags
+        VOS_UNKNOWN = &H00000000
+        VOS_DOS = &H00010000
+        VOS_OS216 = &H00020000
+        VOS_OS232 = &H00030000
+        VOS_NT = &H00040000
+        VOS_WINCE = &H00050000
+        VOS__BASE = &H00000000
+        VOS__WINDOWS16 = &H00000001
+        VOS__PM16 = &H00000002
+        VOS__PM32 = &H00000003
+        VOS__WINDOWS32 = &H00000004
+        VOS_DOS_WINDOWS16 = &H00010001
+        VOS_DOS_WINDOWS32 = &H00010004
+        VOS_OS216_PM16 = &H00020002
+        VOS_OS232_PM32 = &H00030003
+        VOS_NT_WINDOWS32 = &H00040004
+    End Enum
+        
+    Public Enum VersionFileTypes
+        VFT_UNKNOWN = &H00000000
+        VFT_APP = &H00000001
+        VFT_DLL = &H00000002
+        VFT_DRV = &H00000003
+        VFT_FONT = &H00000004
+        VFT_VXD = &H00000005
+        VFT_STATIC_LIB = &H00000007
+    End Enum
+        
+    Public Enum VersionFileSubTypes
+        VFT2_UNKNOWN = &H00000000
+        VFT2_DRV_PRINTER = &H00000001
+        VFT2_DRV_KEYBOARD = &H00000002
+        VFT2_DRV_LANGUAGE = &H00000003
+        VFT2_DRV_DISPLAY = &H00000004
+        VFT2_DRV_MOUSE = &H00000005
+        VFT2_DRV_NETWORK = &H00000006
+        VFT2_DRV_SYSTEM = &H00000007
+        VFT2_DRV_INSTALLABLE = &H00000008
+        VFT2_DRV_SOUND = &H00000009
+        VFT2_DRV_COMM = &H0000000A
+        VFT2_DRV_INPUTMETHOD = &H0000000B
+        VFT2_DRV_VERSIONED_PRINTER = &H0000000C
+        VFT2_FONT_RASTER = &H00000001
+        VFT2_FONT_VECTOR = &H00000002
+        VFT2_FONT_TRUETYPE = &H00000003
+    End Enum
+        
+    Public Type WIN32_FIND_DATAW
+        dwFileAttributes As FILE_ATTRIBUTES
+        ftCreationTime As FILETIME
+        ftLastAccessTime As FILETIME
+        ftLastWriteTime As FILETIME
+        nFileSizeHigh As Long
+        nFileSizeLow As Long
+        dwReserved0 As Long
+        dwReserved1 As Long
+        cFileName(0 To (MAX_PATH - 1)) As Integer
+        cAlternateFileName(0 To 13) As Integer
+    End Type
+
+    Public Type FILETIME
+        dwLowDateTime As Long
+        dwHighDateTime As Long
+    End Type
+        
+    Public Enum FILE_ATTRIBUTES
+        INVALID_FILE_ATTRIBUTES = -1
+        FILE_ATTRIBUTE_READONLY = &H00000001
+        FILE_ATTRIBUTE_HIDDEN = &H00000002
+        FILE_ATTRIBUTE_SYSTEM = &H00000004
+        FILE_ATTRIBUTE_DIRECTORY = &H00000010 'Read only
+        FILE_ATTRIBUTE_ARCHIVE = &H00000020
+        FILE_ATTRIBUTE_DEVICE = &H00000040
+        FILE_ATTRIBUTE_NORMAL = &H00000080
+        FILE_ATTRIBUTE_TEMPORARY = &H00000100
+        FILE_ATTRIBUTE_SPARSE_FILE = &H00000200 'Read only
+        FILE_ATTRIBUTE_REPARSE_POINT = &H00000400 'Read only
+        FILE_ATTRIBUTE_COMPRESSED = &H00000800
+        FILE_ATTRIBUTE_OFFLINE = &H00001000
+        FILE_ATTRIBUTE_NOT_CONTENT_INDEXED = &H00002000
+        FILE_ATTRIBUTE_ENCRYPTED = &H00004000
+        FILE_ATTRIBUTE_INTEGRITY_STREAM = &H00008000&
+        FILE_ATTRIBUTE_VIRTUAL = &H00010000
+        FILE_ATTRIBUTE_NO_SCRUB_DATA = &H00020000
+        FILE_ATTRIBUTE_EA = &H00040000
+        FILE_ATTRIBUTE_RECALL_ON_OPEN = &H00040000
+        FILE_ATTRIBUTE_PINNED = &H000080000
+        FILE_ATTRIBUTE_UNPINNED = &H00100000
+        FILE_ATTRIBUTE_RECALL_ON_DATA_ACCESS = &H400000
+        FILE_ATTRIBUTE_STRICTLY_SEQUENTIAL = &H20000000
+    End Enum
+        
+    Public Const INVALID_HANDLE_VALUE As LongPtr = -1
+    Public Const ERROR_FILE_NOT_FOUND As Long = 2
+    Public Const ERROR_PATH_NOT_FOUND As Long = 3
+    Public Const ERROR_ACCESS_DENIED As Long = 5
+    Public Const ERROR_FILE_EXISTS As Long = 80
+    Public Const ERROR_ALREADY_EXISTS As Long = 183
+    Public Const ERROR_NOT_SAME_DEVICE As Long = 17
+    Public Const ERROR_SHARING_VIOLATION As Long = 32
+    Public Const ERROR_LOCK_VIOLATION   As Long = 33
+    Public Const ERROR_HANDLE_DISK_FULL As Long = 39
+    Public Const ERROR_DISK_FULL        As Long = 112
+    Public Const ERROR_INVALID_NAME As Long = 123
+    Public Const ERROR_DIRECTORY As Long = 267
+    Public Const ERROR_INVALID_DRIVE  As Long = 15
+    Public Const ERROR_BAD_NETPATH    As Long = 53
+    Public Const ERROR_NOT_READY      As Long = 21
+    Public Const ERROR_NOT_CONNECTED   As Long = 2250   ' not a mapped drive - expected, not an error
+    Public Const ERROR_MORE_DATA       As Long = 234    ' buffer too small; lpnLength holds the need
+    Public Const ERROR_CONNECTION_UNAVAIL As Long = 1201 ' mapping exists but is currently disconnected
+    Public Const ERROR_NO_MORE_FILES As Long = 18
+        
+    Public Const MAX_PATH As Long = 260
+        
+    Public Type UUID
+        Data1 As Long
+        Data2 As Integer
+        Data3 As Integer
+        Data4(0 To 7) As Byte
+    End Type
+
+    Public Type SYSTEMTIME
+        wYear As Integer
+        wMonth As Integer
+        wDayOfWeek As Integer
+        wDay As Integer
+        wHour As Integer
+        wMinute As Integer
+        wSecond As Integer
+        wMilliseconds As Integer
+    End Type
+
+    Public Type WIN32_FILE_ATTRIBUTE_DATA
+        dwFileAttributes As FILE_ATTRIBUTES
+        ftCreationTime As FILETIME
+        ftLastAccessTime As FILETIME
+        ftLastWriteTime As FILETIME
+        nFileSizeHigh As Long
+        nFileSizeLow As Long
+    End Type
+        
+    Public Enum GET_FILEEX_INFO_LEVELS
+        GetFileExInfoStandard = 0
+        GetFileExMaxInfoLevel = 1
+    End Enum
+        
+    Public Enum STD_HANDLES
+        STD_INPUT_HANDLE = -10
+        STD_OUTPUT_HANDLE = -11
+        STD_ERROR_HANDLE = -12
+    End Enum
+    
+    ' Copies a COM-allocated LPWSTR into a VB String and (by default) frees the
+    ' original with CoTaskMemFree. Only pass fFree:=False for a pointer we do NOT own.
+    Public Function LPWSTRtoStr(lPtr As LongPtr, Optional ByVal fFree As Boolean = True) As String
+        SysReAllocStringW VarPtr(LPWSTRtoStr), lPtr
+        If fFree Then
+            Call CoTaskMemFree(lPtr)
+            lPtr = 0
+        End If
+    End Function
+    
+    '*/
+
+End Module
