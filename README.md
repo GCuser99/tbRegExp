@@ -32,7 +32,7 @@ external components to ship.
 ## Credits
 
 The heavy lifting — the actual regular-expression compilation and matching — is
-**sihlfall's `vba-regex`** engine:
+**sihlfall's vba-regex** engine:
 
 > https://github.com/sihlfall/vba-regex
 
