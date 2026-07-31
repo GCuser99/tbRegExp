@@ -139,7 +139,6 @@ re.Pattern = "(?i:abc)DEF"        ' case-insensitive for 'abc' only
 ```vba
 re.Flags = "gis"   ' Global + IgnoreCase + DotAll  (g m i s)
 ```
-
 ---
 
 ## Performance
@@ -198,6 +197,12 @@ and conditionals.
 
 Parity with `VBScript.RegExp` across the common surface is verified by an included test
 harness (`modParity`) that compares output against the live engine.
+
+> These limitations are shared with the engine this library replaces, and with the native
+> VBA `RegExp` added in Office 2508 (which is the same legacy engine). If you need `\p{}`,
+> full astral/`u`-mode Unicode, atomic groups, or similar, a wrapper around a native engine
+> (e.g. .NET's) is the better fit — at the cost of a runtime dependency this library
+> deliberately avoids.
 
 ---
 
