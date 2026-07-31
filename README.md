@@ -7,7 +7,7 @@ existing VBScript-style regex code works unchanged — while also supporting a n
 modern regex features that `VBScript.RegExp` never had.
 
 It is **pure twinBASIC**: no COM reference, no external DLL, no runtime dependency. The
-regular-expression engine underneath is [**sihlfall's `vba-regex`**](https://github.com/sihlfall/vba-regex),
+regular-expression engine underneath is [**sihlfall's vba-regex**](https://github.com/sihlfall/vba-regex),
 an excellent ECMAScript-compatible matcher; this project is the compatibility wrapper around it.
 
 ---
