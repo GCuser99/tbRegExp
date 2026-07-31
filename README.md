@@ -42,15 +42,17 @@ available in sihlfall's [`aio` folder](https://github.com/sihlfall/vba-regex/tre
 
 ---
 
-## Installation
+## Install
 
-Add two source files to your twinBASIC project:
+The library comes in three forms — pick whichever fits how you work:
 
-1. **`StaticRegex.twin`** — the engine (sihlfall's `vba-regex`, lightly patched).
-2. **`RegExp.twin`** — the compatibility wrapper (this project: `RegExp`, `Match`,
-`MatchCollection`, `SubMatches`, and a small shared helper module).
+| Form | Use it when | Updates |
+|-|-|-|
+|**twinBASIC package**|You want a referenced `.twinpack`, no copied code|Automatic via the package server|
+|**Single-file drop-in**|You want one `.twin` in your project, no reference|Manual|
+|**ActiveX DLL**|You're calling from VBA, VBScript, or another COM host|Re-register the DLL|
 
-That's it — no references to add, no DLLs to register.
+> **Note:** You don't have to clone this repo to use the package. In your own project, go to **Project → References → Available Packages** and check **Regular Expression Engine** - twinBASIC pulls it from the package server. Clone the repo only if you want to build the DLL, modify the source, or host your own local package.
 
 ---
 
