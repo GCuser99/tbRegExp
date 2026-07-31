@@ -1,0 +1,289 @@
+Module modBenchLLVM
+    Option Explicit
+    ' ==========================================================================
+    ' modBenchLLVM - benchmarking axes aimed at measuring a codegen change
+    ' (e.g. a future LLVM backend), as opposed to wrapper-vs-engine cost.
+    '
+    ' Self-contained: uses only the public StaticRegex API and the RegExp class,
+    ' so it compiles independently of modBench's internals. Writes to the
+    ' Immediate pane and to %TEMP%\regexp_llvm_<ts>.txt.
+    '
+    ' Three axes the existing suite doesn't cover:
+    '   1. RunScaling      - ns-per-character vs input size (slope, not a point).
+    '                        LLVM should lower per-char cost on compute-bound loops.
+    '   2. RunCompileCost  - InitializeRegex (lex+parse+compile) in isolation, the
+    '                        one-shot "build a regex, use once" cost.
+    '   3. RunBacktrackCanary - tunable catastrophic backtracking: the purest
+    '                        VM-compute workload, clearest signal of inner-loop gains.
+    '
+    ' Run any of the three Public subs. Re-run parity FIRST under any new backend
+    ' before trusting these numbers.
+    ' ==========================================================================
+
+    Private Declare PtrSafe Function QueryPerformanceCounter Lib "kernel32" (ByRef lpPerformanceCount As LongLong) As Long
+    Private Declare PtrSafe Function QueryPerformanceFrequency Lib "kernel32" (ByRef lpFrequency As LongLong) As Long
+
+    Private Const MIN_TIME As Double = 0.15
+    Private Const TRIALS As Long = 5
+    Private Const MAX_ITERS As Long = 50000000
+
+    Public gSinkLLVM As LongLong          ' anti-DCE accumulator
+    Private mFreq As LongLong
+    Private mBuf As String                 ' report buffer
+
+    ' ======================================================================
+    ' AXIS 1 - input-size scaling (ns per character)
+    ' ======================================================================
+    Public Sub RunScaling()
+        StartReport
+        Emit "=== input-size scaling: ns per character (lower is better) ==="
+        Emit "LLVM should lower per-char cost on compute-bound loops (slope, not just a point)."
+        Emit String$(78, "-")
+        Emit PadR("pattern", 24) & PadR("op", 10) & PadR("size", 10) & PadR("ns/op", 16) & "ns/char"
+        Emit String$(78, "-")
+
+        ScaleRow "word_token", "\w+", "g", "exec"
+        ScaleRow "char_class", "[A-Za-z]+", "g", "exec"
+        ScaleRow "email", "[\w.]+@[\w.]+", "g", "exec"
+        ScaleRow "alternation", "cat|dog|bird|fish", "g", "exec"
+        ScaleRow "literal_miss", "qxzqxz", "", "test"
+        ScaleRow "replace_digit", "\d", "g", "replace"
+
+        Emit String$(78, "-")
+        FinishReport "regexp_llvm_scaling"
+    End Sub
+
+    Private Sub ScaleRow(ByVal nm As String, ByVal pat As String, ByVal fl As String, ByVal op As String)
+        Dim sizes(0 To 2) As Long
+        sizes(0) = 20000: sizes(1) = 200000: sizes(2) = 2000000
+        Dim s As Long, re As RegExp
+        For s = 0 To 2
+            Dim in As String
+            in = RepeatTo (BaseChunk(), sizes(s))
+            Set re = New RegExp
+            re.Flags = fl
+            re.Pattern = pat
+            Dim nsop As Double
+            nsop = TimeOp(re, op, in)
+            Emit PadR(nm, 24) & PadR(op, 10) & PadR(Format$(sizes(s), "#,##0"), 10) & _
+                 PadR(Format$(nsop, "#,##0"), 16) & Format$(nsop / sizes(s), "0.000")
+        Next s
+        Emit ""
+    End Sub
+
+    ' ======================================================================
+    ' AXIS 2 - compile cost (fresh pattern each iteration)
+    ' ======================================================================
+    Public Sub RunCompileCost()
+        StartReport
+        Emit "=== compile cost: InitializeRegex per fresh pattern (lex+parse+compile) ==="
+        Emit "Matters for 'build a regex, use once' workloads. LLVM affects the compiler too."
+        Emit String$(78, "-")
+        Emit PadR("pattern", 40) & "ns per compile"
+        Emit String$(78, "-")
+
+        CompileRow "\d{4}-\d{2}-\d{2}"
+        CompileRow "(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})"
+        CompileRow "[\w.]+@[\w.]+\.[A-Za-z]{2,}"
+        CompileRow "^(https?|ftp)://[^\s/$.?#].[^\s]*$"
+        CompileRow "(cat|dog|bird|fish|horse|snake|lion|bear)"
+
+        Emit String$(78, "-")
+        FinishReport "regexp_llvm_compile"
+    End Sub
+
+    Private Sub CompileRow(ByVal pat As String)
+        If QueryPerformanceFrequency(mFreq) = 0 Then Emit "QPF failed": Exit Sub
+        ' calibrate
+        Dim iters As Long: iters = CalibrateCompile(pat)
+        ' measure (min of trials)
+        Dim best As Double, t As Long
+        best = 1E+30
+        For t = 1 To TRIALS
+            Dim ns As Double: ns = TimeCompile(pat, iters)
+            If ns < best Then best = ns
+        Next t
+        Emit PadR(Left$(pat, 39), 40) & Format$(best, "#,##0")
+    End Sub
+
+    Private Function TimeCompile(ByVal pat As String, ByVal iters As Long) As Double
+        Dim t0 As LongLong, t1 As LongLong, k As Long, re As RegExp
+        QueryPerformanceCounter t0
+        For k = 1 To iters
+            Set re = New RegExp
+            re.Pattern = pat
+            ' force the lazy compile without a full match: Test on a 1-char string
+            gSinkLLVM = gSinkLLVM + IIf(re.Test("x"), 1, 0)
+        Next k
+        QueryPerformanceCounter t1
+        TimeCompile = (CDbl(t1 - t0) * 1000000000#) / (CDbl(mFreq) * CDbl(iters))
+    End Function
+
+    Private Function CalibrateCompile(ByVal pat As String) As Long
+        Dim iters As Long, elapsed As Double
+        iters = 1
+        Do
+            Dim t0 As LongLong, t1 As LongLong, k As Long, re As RegExp
+            QueryPerformanceCounter t0
+            For k = 1 To iters
+                Set re = New RegExp
+                re.Pattern = pat
+                gSinkLLVM = gSinkLLVM + IIf(re.Test("x"), 1, 0)
+            Next k
+            QueryPerformanceCounter t1
+            elapsed = CDbl(t1 - t0) / CDbl(mFreq)
+            If elapsed >= MIN_TIME Or iters >= MAX_ITERS Then Exit Do
+            iters = NextIters(iters, elapsed)
+        Loop
+        CalibrateCompile = iters
+    End Function
+
+    ' ======================================================================
+    ' AXIS 3 - catastrophic-backtracking canary (tunable)
+    ' ======================================================================
+    ' Purest compute-bound workload: almost no scanning/allocation, just VM stack
+    ' churn. Raise MAX_A until the row dominates; that's your clearest LLVM signal.
+    Private Const CANARY_MIN_A As Long = 12
+    Private Const CANARY_MAX_A As Long = 24     ' bump higher post-LLVM if it returns too fast
+
+    Public Sub RunBacktrackCanary()
+        StartReport
+        Emit "=== backtracking canary: (a+)+$ on N 'a's + '!' (no match; step-limited) ==="
+        Emit "Pure VM-compute. Rising ns with N is the inner-loop cost LLVM should cut."
+        Emit String$(78, "-")
+        Emit PadR("N (a's)", 12) & "ns per Test"
+        Emit String$(78, "-")
+
+        If QueryPerformanceFrequency(mFreq) = 0 Then Emit "QPF failed": FinishReport "regexp_llvm_canary": Exit Sub
+
+        Dim re As RegExp
+        Set re = New RegExp
+        re.Pattern = "(a+)+$"
+
+        Dim n As Long
+        For n = CANARY_MIN_A To CANARY_MAX_A Step 4
+            Dim in As String
+            in = String$ (n, "a") & "!"
+            Dim nsop As Double
+            nsop = TimeOp(re, "test", in)
+            Emit PadR(CStr(n), 12) & Format$(nsop, "#,##0")
+        Next n
+
+        Emit String$(78, "-")
+        FinishReport "regexp_llvm_canary"
+    End Sub
+
+    ' ======================================================================
+    ' Shared timing for a configured RegExp (op = "exec" | "test" | "replace")
+    ' ======================================================================
+    Private Function TimeOp(ByRef re As RegExp, ByVal op As String, ByRef input As String) As Double
+        If mFreq = 0 Then QueryPerformanceFrequency mFreq
+        ' warm-up (forces compile + lazy table init)
+        Dim w As Long
+        For w = 1 To 3: gSinkLLVM = gSinkLLVM + DoOp(re, op, input): Next w
+        ' calibrate
+        Dim iters As Long: iters = CalibrateOp(re, op, input)
+        ' measure (min of trials)
+        Dim best As Double, t As Long
+        best = 1E+30
+        For t = 1 To TRIALS
+            Dim t0 As LongLong, t1 As LongLong, k As Long
+            QueryPerformanceCounter t0
+            For k = 1 To iters
+                gSinkLLVM = gSinkLLVM + DoOp(re, op, input)
+            Next k
+            QueryPerformanceCounter t1
+            Dim ns As Double
+            ns = (CDbl(t1 - t0) * 1000000000#) / (CDbl(mFreq) * CDbl(iters))
+            If ns < best Then best = ns
+        Next t
+        TimeOp = best
+    End Function
+
+    Private Function CalibrateOp(ByRef re As RegExp, ByVal op As String, ByRef input As String) As Long
+        Dim iters As Long, elapsed As Double
+        iters = 1
+        Do
+            Dim t0 As LongLong, t1 As LongLong, k As Long
+            QueryPerformanceCounter t0
+            For k = 1 To iters
+                gSinkLLVM = gSinkLLVM + DoOp(re, op, input)
+            Next k
+            QueryPerformanceCounter t1
+            elapsed = CDbl(t1 - t0) / CDbl(mFreq)
+            If elapsed >= MIN_TIME Or iters >= MAX_ITERS Then Exit Do
+            iters = NextIters(iters, elapsed)
+        Loop
+        CalibrateOp = iters
+    End Function
+
+    Private Function DoOp(ByRef re As RegExp, ByVal op As String, ByRef input As String) As Long
+        Select Case op
+        Case "test":    DoOp = IIf(re.Test(input), 1, 0)
+        Case "exec":    DoOp = re.Execute(input).Count
+        Case "replace": DoOp = Len(re.Replace(input, "#"))
+        End Select
+    End Function
+
+    ' ======================================================================
+    ' Helpers
+    ' ======================================================================
+    Private Function NextIters(ByVal iters As Long, ByVal elapsed As Double) As Long
+        Dim ni As Double
+        If elapsed < 0.000001 Then
+            ni = CDbl(iters) * 8#
+        Else
+            Dim factor As Double
+            factor = (MIN_TIME * 1.5) / elapsed
+            If factor < 2# Then factor = 2#
+            ni = CDbl(iters) * factor
+        End If
+        If ni > CDbl(MAX_ITERS) Then ni = CDbl(MAX_ITERS)
+        NextIters = CLng(ni)
+    End Function
+
+    Private Function BaseChunk() As String
+        BaseChunk = "The quick brown fox 2021-06-09 jumps over user99@example.com " & _
+                    "the lazy dog. Animals: cat dog bird fish cat. " & _
+                    "Order #12345 shipped 2026-07-16 to a1@b2.co." & vbCrLf
+    End Function
+
+    Private Function RepeatTo(ByVal s As String, ByVal targetLen As Long) As String
+        If Len(s) = 0 Then Exit Function
+        Dim r As String: r = s
+        Do While Len(r) < targetLen
+            r = r & r
+        Loop
+        RepeatTo = Left$(r, targetLen)
+    End Function
+
+    Private Sub StartReport()
+        mBuf = vbNullString
+    End Sub
+
+    Private Sub Emit(ByVal s As String)
+        Debug.Print s
+        mBuf = mBuf & s & vbCrLf
+    End Sub
+
+    Private Sub FinishReport(ByVal prefix As String)
+        Emit "sink (ignore): " & CStr(gSinkLLVM)
+        Dim path As String, ff As Integer
+        'path = Environ$("TEMP") & "\" & prefix & "_" & Format$(Now, "yyyymmdd_hhnnss") & ".txt"
+        path = Environ$("USERPROFILE") & "\Documents\GitHub\tbRegExp\Tests\" & prefix & "_" & Format$(Now, "yyyymmdd_hhnnss") & ".txt"
+        On Error GoTo Fail
+        ff = FreeFile
+        Open path For Output As #ff
+        Print #ff, mBuf ;
+        Close #ff
+        Debug.Print "report written: " & path
+        Exit Sub
+Fail:
+        Debug.Print "report write failed - Immediate pane still has it."
+    End Sub
+
+    Private Function PadR(ByVal s As String, ByVal n As Long) As String
+        If Len(s) >= n Then PadR = Left$(s, n) Else PadR = s & Space$(n - Len(s))
+    End Function
+
+End Module

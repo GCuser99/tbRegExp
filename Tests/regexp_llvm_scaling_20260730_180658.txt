@@ -1,0 +1,31 @@
+=== input-size scaling: ns per character (lower is better) ===
+LLVM should lower per-char cost on compute-bound loops (slope, not just a point).
+------------------------------------------------------------------------------
+pattern                 op        size      ns/op           ns/char
+------------------------------------------------------------------------------
+word_token              exec      20,000    8,048,612       402.431
+word_token              exec      200,000   87,216,700      436.084
+word_token              exec      2,000,000 906,049,100     453.025
+
+char_class              exec      20,000    6,386,664       319.333
+char_class              exec      200,000   60,543,600      302.718
+char_class              exec      2,000,000 692,440,200     346.220
+
+email                   exec      20,000    16,478,853      823.943
+email                   exec      200,000   155,775,100     778.876
+email                   exec      2,000,000 1,640,951,800   820.476
+
+alternation             exec      20,000    13,792,588      689.629
+alternation             exec      200,000   139,914,700     699.574
+alternation             exec      2,000,000 1,462,994,700   731.497
+
+literal_miss            test      20,000    181,245         9.062
+literal_miss            test      200,000   1,754,483       8.772
+literal_miss            test      2,000,000 18,879,822      9.440
+
+replace_digit           replace   20,000    3,010,095       150.505
+replace_digit           replace   200,000   30,153,443      150.767
+replace_digit           replace   2,000,000 322,936,800     161.468
+
+------------------------------------------------------------------------------
+sink (ignore): 46802561

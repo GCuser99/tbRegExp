@@ -1,0 +1,24 @@
+------------------------------------------------------------
+PARITY OK  (185 checks passed)
+
+================================================================================================
+================================================================================================
+RegExp benchmark   MIN_TIME=0.15s  TRIALS=5  large=200000 chars
+------------------------------------------------------------------------------------------------
+case                      op         in_len    ours ns/op     com ns/op   ours/com
+------------------------------------------------------------------------------------------------
+test_literal_short        Test          153           999           473      2.11x
+test_literal_miss_large   Test       200000     1,689,394        89,514     18.87x
+exec_char_class           Execute    200000    76,314,833    60,141,200      1.27x
+exec_word_token           Execute    200000    93,714,750    71,322,400      1.31x
+exec_alternation          Execute    200000   151,515,900    23,025,836      6.58x
+exec_date_groups          Execute    200000    35,124,317     9,327,215      3.77x
+exec_email                Execute    200000   160,679,900    11,895,130     13.51x
+exec_named_dates          Execute    200000    35,782,600             -          -
+replace_digits            Replace    200000    30,939,020     1,026,580     30.14x
+replace_backref           Replace    200000   108,369,900     5,449,474     19.89x
+split_whitespace          Split      200000    39,776,240             -          -
+test_backtracking         Test           17     6,426,895     4,357,832      1.47x
+------------------------------------------------------------------------------------------------
+sink (ignore): 365151916
+CSV written: C:\Users\waite\Documents\GitHub\tbRegExp\Tests\regexp_bench_20260730_180457.csv

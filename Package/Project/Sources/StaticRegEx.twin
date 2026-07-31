@@ -1,3 +1,7 @@
+' ==========================================================================
+' This file was automatically generated from the ActiveX DLL version source.
+' COM machinery stripped out for twinBASIC package.
+' ==========================================================================
 Private Module StaticRegex
     '
     ' VbaRegex

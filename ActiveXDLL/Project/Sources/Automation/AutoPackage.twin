@@ -2,23 +2,14 @@ Private Module AutoPackage
 
     Sub prep_for_package()
         Dim tbFolderPath As String
-        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\tbRegExp")
+        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\Project")
         Dim tbSourcesPath As String
         tbSourcesPath = BuildPath(tbFolderPath, "Sources")
         
         Dim c As New Collection
-        c.Add ".\Sources\FileSystemObject.twin"
-        c.Add ".\Sources\FileSystemTools.twin"
-        c.Add ".\Sources\File.twin"
-        c.Add ".\Sources\Files.twin"
-        c.Add ".\Sources\Folder.twin"
-        c.Add ".\Sources\Folders.twin"
-        c.Add ".\Sources\Drive.twin"
-        c.Add ".\Sources\Drives.twin"
-        c.Add ".\Sources\TextStream.twin"
-        c.Add ".\Sources\TextCodec.twin"
-        c.Add ".\Sources\FSTShared.twin"
-        c.Add ".\Sources\WinAPI.twin"
+        c.Add ".\Project\Sources\RegExp.twin"
+        c.Add ".\Project\Sources\StaticRegEx.twin"
+
         
         Dim p As String
         Dim s() As String
@@ -50,7 +41,7 @@ Private Module AutoPackage
         Dim fp As String
         Dim d As Dictionary
         
-        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\tbRegExp")
+        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\Project")
         fp = BuildPath(tbFolderPath, "Settings")
         txt = TextFileToString(fp)
         
@@ -86,15 +77,15 @@ Private Module AutoPackage
         ' Copy license file over
         Dim licensePath As String
         licensePath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\LICENSE")
-        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\tbRegExp\LICENSE.md")
+        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\Project\LICENSE.md")
         CopyFile licensePath, tbFolderPath
 
         ' Build the .twinproj file - requires ImpExp console app (https://github.com/GCuser99/tbImportExport)
         Dim exePath As String, outProjPath As String
         exePath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbImportExport\Build\ImpExp.exe")
             
-        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\tbRegExp package")
-        outProjPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\tbRegExp package.twinproj")
+        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\Project")
+        outProjPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\tbRegExp.twinproj")
             
         DeleteFile outProjPath, ignoreMissing:=True
             

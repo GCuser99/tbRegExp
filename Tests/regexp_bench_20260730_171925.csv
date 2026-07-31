@@ -1,0 +1,13 @@
+case,op,flags,input_len,ours_ns_per_op,com_ns_per_op,ratio_ours_over_com,ours_iters
+test_literal_short,Test,,153,988.1,441.8,2.236,256386
+test_literal_miss_large,Test,,200000,1750381.1,88494.4,19.780,122
+exec_char_class,Execute,g,200000,70566800.0,53914925.0,1.309,3
+exec_word_token,Execute,g,200000,90358650.0,67243000.0,1.344,2
+exec_alternation,Execute,g,200000,130561650.0,19393927.3,6.732,2
+exec_date_groups,Execute,g,200000,28882542.9,8100978.6,3.565,7
+exec_email,Execute,g,200000,143556700.0,10921265.0,13.145,2
+exec_named_dates,Execute,g,200000,32721714.3,,,7
+replace_digits,Replace,g,200000,28636875.0,934596.6,30.641,8
+replace_backref,Replace,g,200000,100406950.0,4982913.3,20.150,2
+split_whitespace,Split,g,200000,37021350.0,,,6
+test_backtracking,Test,,17,5871897.4,4104438.8,1.431,38

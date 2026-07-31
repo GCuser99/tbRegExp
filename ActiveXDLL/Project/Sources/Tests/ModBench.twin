@@ -530,6 +530,10 @@ Fail:
         DiagRow "email", "[\w.]+@[\w.]+", "g", large
         DiagRow "date_groups (3 subs)", "(\d{4})-(\d{2})-(\d{2})", "g", large
         DiagRow "named_dates (3 subs)", "(?<y>\d{4})-(?<m>\d{2})", "g", large
+        ' compute-bound cases: engine-loop dominated, minimal allocation.
+        ' These are the clearest LLVM signal - watch the engine column post-LLVM.
+        DiagRow "alternation  cat|dog|..", "cat|dog|bird|fish", "g", large
+        DiagRow "backtrack (a+)+  small", "(a+)+$", "", RepeatTo("a", 18) & "!"
 
         modReport.Emit String$(80, "-")
         modReport.Emit "sink (ignore): " & CStr(gSink)

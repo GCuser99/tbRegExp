@@ -24,6 +24,10 @@ Class Form1
         Else
             MsgBox "Ran, but the report file couldn't be written — check TEMP permissions.", vbExclamation
         End If
+        modBenchLLVM.RunScaling()
+        modBenchLLVM.RunBacktrackCanary
+        modBenchLLVM.RunCompileCost
+        MsgBox "LLVM test complete.", vbInformation
     End Sub
     
 End Class

@@ -1,0 +1,12 @@
+=== compile cost: InitializeRegex per fresh pattern (lex+parse+compile) ===
+Matters for 'build a regex, use once' workloads. LLVM affects the compiler too.
+------------------------------------------------------------------------------
+pattern                                 ns per compile
+------------------------------------------------------------------------------
+\d{4}-\d{2}-\d{2}                       7,174
+(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})     12,470
+[\w.]+@[\w.]+\.[A-Za-z]{2,}             13,134
+^(https?|ftp)://[^\s/$.?#].[^\s]*$      21,164
+(cat|dog|bird|fish|horse|snake|lion|bea 21,869
+------------------------------------------------------------------------------
+sink (ignore): 45467483

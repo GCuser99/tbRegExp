@@ -1,4 +1,8 @@
 ' ==========================================================================
+' This file was automatically generated from the ActiveX DLL version source.
+' COM machinery stripped out for twinBASIC package.
+' ==========================================================================
+' ==========================================================================
 ' WRAPPER — RegExp / Match / MatchCollection / SubMatches (+ modRegexShared)
 ' Drop-in replacement for VBScript.RegExp. Engine lives in StaticRegex.twin.
 ' Local performance patches here (grep "PERF PATCH"); engine patches 01-03
@@ -14,7 +18,6 @@
 '
 ' Uses Internal_ prefix for Friend procedures; tB leaks Friend across the package boundary
 ' ==========================================================================
-[COMCreatable(False)]
 [PredeclaredId(False)]
 [Hidden(False)]
 [Description("This class exposes a drop-in replacement for VBSript's regular expression object model.")]
@@ -306,7 +309,6 @@ Public Class RegExp
 
 End Class
 
-[COMCreatable(False)]
 [PredeclaredId(False)]
 [Hidden(False)]
 [Description("This class represents the results from a single regular expression match.")]
@@ -365,7 +367,6 @@ Public Class Match
 
 End Class
 
-[COMCreatable(False)]
 [PredeclaredId(False)]
 [Hidden(False)]
 [Description("This class represents a collection of match objects.")]
@@ -414,7 +415,6 @@ Public Class MatchCollection
 
 End Class
 
-[COMCreatable(False)]
 [PredeclaredId(False)]
 [Hidden(False)]
 [Description("This class provides the means to access SubMatch (Group) values.")]
