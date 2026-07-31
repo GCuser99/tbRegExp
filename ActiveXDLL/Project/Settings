@@ -5,7 +5,7 @@
 	"project.buildType": "Standard EXE",
 	"project.description": "Regular Expressions Object- Replacement for VBScript.RegExp",
 	"project.exportPathIsV2": true,
-	"project.id": "{EAEAEAEA-EAEA-EAEA-EAEA-EAEAEAEAEA00}",
+	"project.id": "{BCEDB982-44EB-4F0C-B6E2-B0E80DC7D902}",
 	"project.name": "tbRegExp",
 	"project.optionExplicit": true,
 	"project.references": [
@@ -70,6 +70,7 @@
 	],
 	"project.settingsVersion": 1,
 	"project.startupObject": "Form1",
+	"project.useProjectIdForTypeLibraryId": true,
 	"project.versionRevision": 4,
 	"project.warnings": {
 		"errors": [],

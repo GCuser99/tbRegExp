@@ -113,11 +113,6 @@ Private Module AutoPackage
         
         ' Run unpack
         Shell exePath & " import " & inProjPath & " " & tbFolderPath, vbNormalFocus
-        
-        ' .meta could have personal info - not needed for re-pack to work
-        'tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Package\tbRegExp package")
-        'Debug.Print FileExists(BuildPath(tbFolderPath, ".meta"))
-        'DeleteFile BuildPath(tbFolderPath, ".meta"), ignoreMissing:=True
     End Sub
     
 End Module

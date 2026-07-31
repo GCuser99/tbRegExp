@@ -14,14 +14,16 @@
 '
 ' Uses Internal_ prefix for Friend procedures; tB leaks Friend across the package boundary
 ' ==========================================================================
-[COMCreatable(False)]
+[COMCreatable(True)]
+[ClassId("BCEDB982-44EB-4F0C-B6E2-EFE17FDFB911")]
+[InterfaceId("BCEDB982-44EB-4F0C-B6E2-31FEE6287F4D")]
 [PredeclaredId(False)]
 [Hidden(False)]
 [Description("This class exposes a drop-in replacement for VBSript's regular expressions object model.")]
 Public Class RegExp
     Option Explicit
     ' ==========================================================================
-    ' RegExp version 1.1
+    ' RegExp
     '
     ' A drop-in replacement for VBSript's regular expressions object model 
     ' by wrapping sihlfall's excellent vba-regex (https://github.com/sihlfall/vba-regex)
@@ -294,6 +296,7 @@ End Class
 
 [COMCreatable(False)]
 [PredeclaredId(False)]
+[InterfaceId("BCEDB982-44EB-4F0C-B6E2-BDEC4D046CEF")]
 [Hidden(False)]
 [Description("This class represents the results from a single regular expression match.")]
 Public Class Match
@@ -353,6 +356,7 @@ End Class
 
 [COMCreatable(False)]
 [PredeclaredId(False)]
+[InterfaceId("BCEDB982-44EB-4F0C-B6E2-FF2410FF86B2")]
 [Hidden(False)]
 [Description("This class represents a collection of match objects.")]
 Public Class MatchCollection
@@ -398,6 +402,7 @@ End Class
 
 [COMCreatable(False)]
 [PredeclaredId(False)]
+[InterfaceId("BCEDB982-44EB-4F0C-B6E2-1537F3762923")]
 [Hidden(False)]
 [Description("This class provides the means to access SubMatch (Group) values.")]
 Public Class SubMatches
