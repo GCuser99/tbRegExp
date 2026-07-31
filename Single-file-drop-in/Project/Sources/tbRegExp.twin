@@ -1,5 +1,5 @@
 ' =======================================================================================
-' MIT License - Copyright (c) 2026, GCUser99 (https://github.com/GCUser99/tbFileSysTools)
+' MIT License - Copyright (c) 2026, GCUser99 (https://github.com/GCUser99/tbRegExp)
 ' =======================================================================================
 ' This file was automatically generated from the ActiveX DLL version source.
 ' COM machinery stripped out, public class/modules made private, and combined
@@ -29,7 +29,7 @@ Public Class RegExp
     ' ==========================================================================
     ' RegExp version 1.1
     '
-    ' A drop-in replacement for VBSript's regular expression object model 
+    ' A drop-in replacement for VBSript's regular expressions object model 
     ' by wrapping sihlfall's excellent vba-regex (https://github.com/sihlfall/vba-regex)
     '
     ' The dependency for this class is the StaticRegex module. For how to obtain the 
@@ -60,19 +60,7 @@ Public Class RegExp
     ' OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     ' SOFTWARE.
     ' ========================================================================== 
-    /*
-    Private Enum BytecodeDescriptionConstant
-        BYTECODE_IDX_MAX_PROPER_CAPTURE_SLOT = 0
-        BYTECODE_IDX_N_IDENTIFIERS = 1
-        BYTECODE_IDX_CASE_INSENSITIVE_INDICATOR = 2
-        BYTECODE_IDENTIFIER_MAP_BEGIN = 3
-        BYTECODE_IDENTIFIER_MAP_ENTRY_SIZE = 3
-        BYTECODE_IDENTIFIER_MAP_ENTRY_START_IN_PATTERN = 0
-        BYTECODE_IDENTIFIER_MAP_ENTRY_LENGTH_IN_PATTERN = 1
-        BYTECODE_IDENTIFIER_MAP_ENTRY_ID = 2
-        RE_QUANTIFIER_INFINITE = &H7FFFFFFF
-    End Enum
-    */
+
     Private mGlobal As Boolean
     Private mMultiLine As Boolean
     Private mIgnoreCase As Boolean
@@ -88,10 +76,8 @@ Public Class RegExp
     
     [Description("Sets or Gets the options in use: g-global; m-multiline; i-ignore case; s-dot all. Example: 'gm' sets Global and MultiLine to 'True', IgnoreCase and DotAll to 'False'.")]
     Public Property Let Flags(ByVal pFlags As String)
-        'this "convenience" property was borrowed from 
-        'https://github.com/sihlfall/vba-regex/blob/master/stdvba_regex3/stdRegex3.cls
-        'note that if a flag indicator is not present in the string, then it is set to False
-        'user setting Flags value to vbNullString effectively sets all flags to False (default state)
+        ' Note that if a flag indicator is not present in the string, then it is set to False
+        ' Setting Flags value to vbNullString effectively sets all flags to False (default state)
         pFlags = LCase(pFlags)
         mGlobal = CBool(InStr(pFlags, "g"))
         mMultiLine = CBool(InStr(pFlags, "m"))
@@ -351,8 +337,8 @@ Public Class Match
 
     ' Internal_ prefix: package-internal construction seam. tB leaks Friend across the
     ' package boundary, so this flags it as not-for-consumers. Single channel for building
-    ' a Match: scalars in one shot, submatches moved in as arrays (no per-submatch calls,
-    ' no Collection). subCount = 0 keeps the shared-empty SubMatches (group-less fast path).
+    ' a Match: scalars in one shot, submatches moved in as arrays. subCount = 0 keeps the
+    ' shared-empty SubMatches (group-less fast path).
     Friend Sub Internal_Init(ByVal matchValue As String, ByVal firstIndex As Long, ByVal length As Long, _
                              ByRef subVals() As String, ByRef subKeys() As String, ByVal subCount As Long)
         mValue = matchValue
@@ -377,11 +363,7 @@ Public Class MatchCollection
     Option Explicit
 
     Private colMatches As Collection
-    /*
-    Friend Sub Add(obj As Match)
-        colMatches.Add obj
-    End Sub
-    */
+
     Friend Sub Internal_Add(obj As Match)
         colMatches.Add obj
     End Sub
@@ -471,8 +453,8 @@ Public Class SubMatches
     [Hidden(True)]
     [Enumerator]
     Public Function NewEnum() As IUnknown
-        'build the enumeration Collection on demand (SubMatches are tiny); index/key
-        'access never gets here, so grouped matches pay no Collection cost during Execute
+        ' Build the enumeration Collection on demand (SubMatches are tiny); index/key
+        ' access never gets here, so grouped matches pay no Collection cost during Execute
         If oEnumColl Is Nothing Then
             Set oEnumColl = New Collection
             Dim i As Long
@@ -621,7 +603,7 @@ Private Module StaticRegex
         REGEX_ERR_INVALID_INPUT = REGEX_ERR + 50
     End Enum
 
-    Public Enum BytecodeDescriptionConstant '>>> Patch 05 - make Public for RegExp
+    Public Enum BytecodeDescriptionConstant '>>> PATCH 05 - make Public for RegExp
         BYTECODE_IDX_MAX_PROPER_CAPTURE_SLOT = 0
         BYTECODE_IDX_N_IDENTIFIERS = 1
         BYTECODE_IDX_CASE_INSENSITIVE_INDICATOR = 2
@@ -4038,53 +4020,28 @@ Private Module StaticRegex
     End Sub
     '<<< PERF PATCH 01
 
-    /*
     Private Function GetInputCharCode(ByRef inputStr As String, ByRef sp As Long, ByVal spDelta As Long) As Long
-        If sp >= Len(inputStr) Then
+        If sp >= mInputLen Then
             GetInputCharCode = DFS_ENDOFINPUT
         ElseIf sp < 0 Then
             GetInputCharCode = DFS_ENDOFINPUT
         Else
-            GetInputCharCode = AscW(Mid$(inputStr, sp + 1, 1)) And &HFFFF& ' sp is 0-based and Mid$ is 1-based
+            'GetInputCharCode = AscW(Mid$(inputStr, sp + 1, 1)) And &HFFFF& ' sp is 0-based and Mid$ is 1-based
+            GetInputCharCode = mInputChars(sp) And &HFFFF& '>>> PERF PATCH 01: index decoded array instead of Mid$
             sp = sp + spDelta
         End If
     End Function
-    */
 
-    '>>> PERF PATCH 01: index decoded array instead of Mid$
-    Private Function GetInputCharCode(ByRef inputStr As String, ByRef sp As Long, ByVal spDelta As Long) As Long
-        If sp >= mInputLen Then
-            GetInputCharCode = DFS_ENDOFINPUT
-        ElseIf sp < 0 Then
-            GetInputCharCode = DFS_ENDOFINPUT
-        Else
-            GetInputCharCode = mInputChars(sp) And &HFFFF&
-            sp = sp + spDelta
-        End If
-    End Function
-    '<<< PERF PATCH 01
-    /*
-    Private Function PeekInputCharCode(ByRef inputStr As String, ByRef sp As Long) As Long
-        If sp >= Len(inputStr) Then
-            PeekInputCharCode = DFS_ENDOFINPUT
-        ElseIf sp < 0 Then
-            PeekInputCharCode = DFS_ENDOFINPUT
-        Else
-            PeekInputCharCode = AscW(Mid$(inputStr, sp + 1, 1)) And &HFFFF& ' sp is 0-based and Mid$ is 1-based
-        End If
-    End Function
-    */
-    '>>> PERF PATCH 01: index decoded array instead of Mid$
     Private Function PeekInputCharCode(ByRef inputStr As String, ByRef sp As Long) As Long
         If sp >= mInputLen Then
             PeekInputCharCode = DFS_ENDOFINPUT
         ElseIf sp < 0 Then
             PeekInputCharCode = DFS_ENDOFINPUT
         Else
-            PeekInputCharCode = mInputChars(sp) And &HFFFF&
+            'PeekInputCharCode = AscW(Mid$(inputStr, sp + 1, 1)) And &HFFFF& ' sp is 0-based and Mid$ is 1-based
+            PeekInputCharCode = mInputChars(sp) And &HFFFF& '>>> PERF PATCH 01: index decoded array instead of Mid$
         End If
     End Function
-    '<<< PERF PATCH 01
 
     Private Function UnicodeReIsWordchar(c As Long) As Boolean
         If c <= 90 Then ' Z
@@ -4967,7 +4924,7 @@ Private Module StaticRegex
         matcherState.current = (r - (oldCurrent = r)) Or matcherState.localMatch
         MatchNext = r <> -1
     End Function
-    '>>> Patch 04
+    '>>> PATCH 04
     Public Function ReplaceByRegEx( _
         ByRef regex As RegexTy, _
         ByRef replacer As String, _
@@ -4976,7 +4933,7 @@ Private Module StaticRegex
         Optional ByVal multiline As Boolean = False, _
         Optional ByVal dotAll As Boolean = False _
     ) As String
-        '<<< Patch 04
+        '<<< PATCH 04
         Dim parsedFormat As ArrayBuffer, matcherState As MatcherStateTy, lastEndPos As Long, resultBuilder As StaticStringBuilder
 
         ParseFormatString parsedFormat, replacer, regex.bytecode, regex.pattern

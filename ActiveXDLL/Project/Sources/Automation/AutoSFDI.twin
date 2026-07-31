@@ -10,20 +10,15 @@ Module AutoSFDI
         c.Add ".\Project\Sources\RegExp.twin"
         c.Add ".\Project\Sources\StaticRegEx.twin"
         
-        'determine encoding for first file
-        Dim enc As TextEncoding
-        Dim le As NewlineType
         Dim p As String
         Dim s() As String
         Dim o() As String
         Dim i As Long, j As Long
-        enc = GetFileEncoding(c(1))
-        le = GetFileLineEnding(c(1))
         
         ReDim o(0 To 1000000)
             
         o(0) = "' ======================================================================================="
-        o(1) = "' MIT License - Copyright (c) 2026, GCUser99 (https://github.com/GCUser99/tbFileSysTools)"
+        o(1) = "' MIT License - Copyright (c) 2026, GCUser99 (https://github.com/GCUser99/tbRegExp)"
         o(2) = "' ======================================================================================="
         o(3) = "' This file was automatically generated from the ActiveX DLL version source."
         o(4) = "' COM machinery stripped out, public class/modules made private, and combined"
@@ -45,7 +40,25 @@ Module AutoSFDI
         Next p
         
         ReDim Preserve o(0 To j)
-        ArrayToTextFile o, BuildPath (tbFolderPath, "Sources\tbRegExp.twin"), encoding:=enc, lineEnding:=le
+        ArrayToTextFile o, BuildPath (tbFolderPath, "Sources\tbRegExp.twin")
+        
+        ' Modify version to match version from this project
+        Dim txt As String
+        Dim fp As String
+        Dim d As Dictionary
+        
+        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\Single-File-Drop-in\Project")
+        fp = BuildPath(tbFolderPath, "Settings")
+        txt = TextFileToString(fp)
+        
+        Set d = LibJSON.Parse(txt).Value
+        d("project.versionMajor") = App.Major
+        d("project.versionMinor") = App.Minor
+        d("project.versionBuild") = App.Build
+        d("project.versionRevision") = App.Revision
+        
+        txt = LibJSON.Serialize(d, indentspaces:=8)
+        StringToTextFile txt, BuildPath(tbFolderPath, "Settings")
         
         ' Pack the modfied source into a .twinproj file
         Dim exePath As String, outProjPath As String

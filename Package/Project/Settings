@@ -33,5 +33,5 @@
         },
         "runtime.useUnicodeStandardLibrary": true,
         "project.versionBuild": 0,
-        "project.versionRevision": 3
+        "project.versionRevision": 4
 }
