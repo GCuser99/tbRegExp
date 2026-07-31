@@ -139,46 +139,6 @@ re.Pattern = "(?i:abc)DEF"        ' case-insensitive for 'abc' only
 ```vba
 re.Flags = "gis"   ' Global + IgnoreCase + DotAll  (g m i s)
 ```
-## Limitations
-
-This library adds several features beyond `VBScript.RegExp` (see
-[Beyond VBScript.RegExp](#beyond-vbscriptregexp)), but because it targets the same
-JavaScript/ECMAScript-style regex dialect, it also **shares several of `VBScript.RegExp`'s
-limitations**. If your existing code works against `VBScript.RegExp`, these gaps won't
-surprise you — they're the same ones.
-
-### Shared with VBScript.RegExp (not supported by either)
-
-| Feature | Example | Notes |
-|---|---|---|
-| Unicode property classes | `\p{L}`, `\p{Sc}`, `\p{Script=Han}` | Not supported by either engine |
-| Supplementary / astral characters | emoji, chars above U+FFFF | Handled as UTF-16 surrogate pairs, not single code points, in both |
-| Unicode `\w` / `\d` / `\b` | `\w` matching `文` or `\d` matching `４` | ASCII-only in both — `\w` is `[A-Za-z0-9_]`, `\d` is `[0-9]` |
-| Atomic groups | `(?>...)` | Not part of the ECMAScript dialect |
-| Possessive quantifiers | `a++`, `a*+` | Not part of the ECMAScript dialect |
-| `\A` / `\z` / `\Z` anchors | `\A`, `\z` | Use `^` / `$` (absolute when `MultiLine` is off) |
-| Conditionals | `(?(1)yes\|no)` | Not part of the ECMAScript dialect |
-
-### Not supported by this library specifically
-
-| Feature | Example | Notes |
-|---|---|---|
-| Named backreferences | `\k<name>` | *Numbered* backreferences (`\1`, `\2`) **are** supported; named capture and named `$<name>` replacement are supported — only the `\k<name>` backreference form is not |
-
-### A note on Unicode
-
-Case-insensitive matching **is** Unicode-aware for characters in the Basic Multilingual
-Plane, including accented Latin, Greek, and Cyrillic — verified against `VBScript.RegExp`,
-which behaves the same. This is one area where the shared "limitation" is milder than it
-sounds: everyday accented text folds correctly. What is *not* supported is the property-class
-and astral machinery above.
-
-> These limitations are shared with the engine this library replaces, and with the native
-> VBA `RegExp` added in Office 2508 (which is the same legacy engine). If you need `\p{}`,
-> full astral/`u`-mode Unicode, atomic groups, or similar, a wrapper around a native engine
-> (e.g. .NET's) is the better fit — at the cost of a runtime dependency this library
-> deliberately avoids.
-
 ---
 
 ## Performance
@@ -238,7 +198,11 @@ and conditionals.
 Parity with `VBScript.RegExp` across the common surface is verified by an included test
 harness (`modParity`) that compares output against the live engine.
 
-These are the same limitations as the engine this library replaces — and as the native VBA RegExp added in Office 2508, which is the same legacy engine — so migrating code loses nothing. If you need `\p{}`, full astral Unicode, or atomic groups, a native-engine wrapper (with the runtime dependency that entails) is the better fit.
+> These limitations are shared with the engine this library replaces, and with the native
+> VBA `RegExp` added in Office 2508 (which is the same legacy engine). If you need `\p{}`,
+> full astral/`u`-mode Unicode, atomic groups, or similar, a wrapper around a native engine
+> (e.g. .NET's) is the better fit — at the cost of a runtime dependency this library
+> deliberately avoids.
 
 ---
 
