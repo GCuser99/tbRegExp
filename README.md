@@ -238,6 +238,8 @@ and conditionals.
 Parity with `VBScript.RegExp` across the common surface is verified by an included test
 harness (`modParity`) that compares output against the live engine.
 
+These are the same limitations as the engine this library replaces — and as the native VBA RegExp added in Office 2508, which is the same legacy engine — so migrating code loses nothing. If you need `\p{}`, full astral Unicode, or atomic groups, a native-engine wrapper (with the runtime dependency that entails) is the better fit.
+
 ---
 
 ## License
