@@ -27,7 +27,7 @@
 Public Class RegExp
     Option Explicit
     ' ==========================================================================
-    ' RegExp version 1.1
+    ' RegExp
     '
     ' A drop-in replacement for VBSript's regular expressions object model 
     ' by wrapping sihlfall's excellent vba-regex (https://github.com/sihlfall/vba-regex)
