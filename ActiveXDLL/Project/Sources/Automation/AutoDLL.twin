@@ -2,22 +2,20 @@ Module AutoDLL
 
     Sub UnpackTwinProj()
         ' Requires ImpExp console app (https://github.com/GCuser99/tbImportExport)
+        ' Note: Save this project first, then run this procedure
         Dim exePath As String
-        Dim inProjPath As String
-        Dim tbFolderPath As String
+        Dim inProjFilePath As String
+        Dim outProjFolderPath As String
         
         exePath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbImportExport\Build\ImpExp.exe")
-        tbFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\ActiveXDLL\Project")
-        inProjPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\ActiveXDLL\tbRegExp.twinproj")
+        inProjFilePath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\ActiveXDLL\tbRegExp.twinproj")
+        outProjFolderPath = BuildPath(GetSpecialFolder(sfDocuments), "GitHub\tbRegExp\ActiveXDLL\Project")
         
-        DeleteFolder tbFolderPath, ignoreMissing:=True
-        
-        tbFolderPath = """" & tbFolderPath & """"
-        inProjPath = """" & inProjPath & """"
-        exePath = """" & exePath & """"
+        DeleteFolder outProjFolderPath, ignoreMissing:=True
         
         ' Run unpack
-        Shell exePath & " unpack " & inProjPath & " " & tbFolderPath, vbNormalFocus
+        'Shell "cmd.exe /k """"" & exePath & """ unpack """ & inProjFilePath & """ """ & outProjFolderPath & """""", vbNormalFocus
+        Shell """" & exePath & """ unpack """ & inProjFilePath & """ """ & outProjFolderPath & """", vbNormalFocus
     End Sub
 
 End Module

@@ -2,8 +2,7 @@
 ' MIT License - Copyright (c) 2026, GCUser99 (https://github.com/GCUser99/tbRegExp)
 ' =======================================================================================
 ' This file was automatically generated from the ActiveX DLL version source.
-' COM machinery stripped out, public class/modules made private, and combined
-' into one file for easy project drop-in.
+' COM machinery stripped out and combined into one file for easy project drop-in.
 ' =======================================================================================
 ' ==========================================================================
 ' WRAPPER — RegExp / Match / MatchCollection / SubMatches (+ modRegexShared)
