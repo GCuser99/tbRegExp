@@ -7,7 +7,7 @@ existing VBScript-style regex code works unchanged — while also supporting a n
 modern regex features that `VBScript.RegExp` never had.
 
 It is **pure twinBASIC**: no COM reference, no external DLL, no runtime dependency. The
-regular-expressions engine underneath is [**sihlfall's vba-regex**](https://github.com/sihlfall/vba-regex),
+regular-expressions engine underneath is [sihlfall's vba-regex](https://github.com/sihlfall/vba-regex),
 an excellent ECMAScript-compatible matcher; this project is the compatibility wrapper around it.
 
 ---
@@ -50,7 +50,7 @@ The library comes in three forms — pick whichever fits how you work:
 |-|-|-|
 |**twinBASIC package**|You want a referenced `.twinpack`, no copied code|Automatic via the package server|
 |**Single-file drop-in**|You want one `.twin` in your project, no reference|Manual|
-|**ActiveX DLL**|You're calling from VBA, VBScript, or another COM host|Re-register the DLL|
+|**ActiveX DLL**|You're calling from VBA, VBScript, or another COM host|Re-install the DLL (Inno script included)|
 
 > **Note:** You don't have to clone this repo to use the package. In your own project, go to **Project → References → Available Packages** and check **Regular Expression Engine** - twinBASIC pulls it from the package server. Clone the repo only if you want to build the DLL, modify the source, or host your own local package.
 
@@ -156,14 +156,11 @@ look larger than they matter in practice, because they are measured on deliberat
 (200 KB) inputs to expose the costs; on everyday inputs both engines finish effectively
 instantly.
 
-> \*\*These figures are provisional.\*\* They were captured with a compiled build over 200 KB
+> **These figures are provisional.** They were captured with a compiled build over 200 KB
 > inputs on a single machine and vary with input size, pattern shape, and machine state.
-> They will be refreshed once a clean, unloaded benchmark environment is available. A
-> benchmark harness (`modBench`) and a parity harness (`modParity`, which checks output
-> against live `VBScript.RegExp`) are included so you can measure on \*your\* setup.
+> They will be refreshed once LLVM optimization is available.
 
-*Last measured: provisional (to be updated). Lower is better; **1.0× = parity** with
-`VBScript.RegExp`.*
+*Lower is better; **1.0× = parity** with`VBScript.RegExp`.*
 
 |Operation|Example|Relative to `VBScript.RegExp`|Notes|
 |-|-|-:|-|
@@ -180,7 +177,7 @@ rather than allowed to run away). **Where it doesn't:** the common case of ancho
 patterns and extraction over normal-sized text, which is at or near parity.
 
 If raw throughput on huge inputs with complex patterns is your priority and a runtime
-dependency is acceptable, a [wrapper around a native engine such as .NET's](https://github.com/6DiegoDiego9/VBA-dotNET-regex) will beat a pure-tB matcher — that is the trade this library deliberately does *not* make, in favour of being
+dependency is acceptable, a [wrapper around a native engine such as .NET's](https://github.com/6DiegoDiego9/VBA-dotNET-regex) will probably beat a pure-tB matcher — that is the trade this library deliberately does *not* make, in favor of being
 self-contained and portable.
 
 ---
@@ -197,14 +194,8 @@ Other constructs not currently supported: named backreferences (`\\k<name>` — 
 backreferences like `\\1` do work), atomic groups / possessive quantifiers, `\\A`/`\\Z` anchors,
 and conditionals.
 
-Parity with `VBScript.RegExp` across the common surface is verified by an included test
-harness (`modParity`) that compares output against the live engine.
-
 > These limitations are shared with the engine this library replaces, and with the native
-> VBA `RegExp` added in Office 2508 (which is the same legacy engine). If you need `\p{}`,
-> full astral/`u`-mode Unicode, atomic groups, or similar, a wrapper around a native engine
-> (e.g. .NET's) is the better fit — at the cost of a runtime dependency this library
-> deliberately avoids.
+> VBA `RegExp` added in Office 2508 (which is the same legacy engine).
 
 ---
 
@@ -212,7 +203,7 @@ harness (`modParity`) that compares output against the live engine.
 
 MIT License. Copyright (c) 2025–2026, GCUser99.
 
-The bundled engine (`StaticRegex`) is a minimally edited version of sihlfall's `vba-regex`; see that project for its own
+The bundled engine (`StaticRegex`) is a minimally edited version of [sihlfall's vba-regex](https://github.com/sihlfall/vba-regex); see that project for its own
 license terms.
 
 ---
