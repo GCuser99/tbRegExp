@@ -60,7 +60,7 @@
 #define AppGUID "{BCEDB982-44EB-4F0C-B6E2-B0E80DC7D902}"
 #define AppPublisher "GCUser99"
 #define AppURL "https://github.com/GCuser99/tbRegExp"
-#define AppHelpURL "https://github.com/GCuser99/tbRegExp/wiki"
+#define AppHelpURL "https://github.com/GCuser99/tbRegExp"
 #define InstallerName "tbRegExpDLLSetup"
 #define DLL64FilePath "..\Build\tbRegExp_win64.dll"
 #define DLL32FilePath "..\Build\tbRegExp_win32.dll"
