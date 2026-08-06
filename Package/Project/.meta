@@ -1,12 +1,14 @@
 {
-	"rootFolder": "/tbRegExp",
+	"rootFolder": "/NewProject",
 	"fs_expandedFolders": [
-		"/tbRegExp",
-		"/tbRegExp/Sources"
+		"/NewProject",
+		"/NewProject/Resources",
+		"/NewProject/Resources/Notes",
+		"/NewProject/Sources"
 	],
 	"openEditors": [
 		{
-			"uri": "/tbRegExp/Sources/HelloWorldClass.twin",
+			"uri": "/NewProject/Sources/Form1.twin",
 			"state": {
 				"cursorState": [
 					{
@@ -33,7 +35,7 @@
 					"editor.contrib.wordHighlighter": false,
 					"editor.contrib.folding": {
 						"collapsedRegions": [],
-						"lineCount": 8,
+						"lineCount": 16,
 						"foldedImports": false
 					}
 				}
@@ -41,18 +43,162 @@
 			"isSelected": false
 		},
 		{
-			"uri": "/tbRegExp/Sources/HelloWorldModule.twin",
+			"uri": "/NewProject/Sources/Form1.tbform",
+			"isSelected": false
+		},
+		{
+			"uri": "/NewProject/Sources/StaticRegex.twin",
 			"state": {
 				"cursorState": [
 					{
 						"inSelectionMode": false,
 						"selectionStart": {
-							"lineNumber": 5,
-							"column": 30
+							"lineNumber": 3471,
+							"column": 37
 						},
 						"position": {
-							"lineNumber": 5,
-							"column": 30
+							"lineNumber": 3471,
+							"column": 37
+						}
+					}
+				],
+				"viewState": {
+					"scrollLeft": 0,
+					"firstPosition": {
+						"lineNumber": 3452,
+						"column": 1
+					},
+					"firstPositionDeltaTop": -6
+				},
+				"contributionsState": {
+					"editor.contrib.wordHighlighter": true,
+					"editor.contrib.folding": {
+						"lineCount": 4582,
+						"provider": "syntax",
+						"foldedImports": false
+					}
+				}
+			},
+			"isSelected": false
+		},
+		{
+			"uri": "/NewProject/Sources/ModParityTests.twin",
+			"state": {
+				"cursorState": [
+					{
+						"inSelectionMode": false,
+						"selectionStart": {
+							"lineNumber": 60,
+							"column": 93
+						},
+						"position": {
+							"lineNumber": 60,
+							"column": 93
+						}
+					}
+				],
+				"viewState": {
+					"scrollLeft": 0,
+					"firstPosition": {
+						"lineNumber": 20,
+						"column": 1
+					},
+					"firstPositionDeltaTop": -8
+				},
+				"contributionsState": {
+					"editor.contrib.wordHighlighter": false,
+					"editor.contrib.folding": {
+						"lineCount": 248,
+						"provider": "syntax",
+						"foldedImports": false
+					}
+				}
+			},
+			"isSelected": false
+		},
+		{
+			"uri": "/NewProject/Resources/Notes/Version",
+			"state": {
+				"cursorState": [
+					{
+						"inSelectionMode": false,
+						"selectionStart": {
+							"lineNumber": 245,
+							"column": 1
+						},
+						"position": {
+							"lineNumber": 245,
+							"column": 1
+						}
+					}
+				],
+				"viewState": {
+					"scrollLeft": 0,
+					"firstPosition": {
+						"lineNumber": 236,
+						"column": 1
+					},
+					"firstPositionDeltaTop": -9
+				},
+				"contributionsState": {
+					"editor.contrib.wordHighlighter": false,
+					"editor.contrib.folding": {
+						"lineCount": 272,
+						"provider": "indent",
+						"foldedImports": false
+					}
+				}
+			},
+			"isSelected": true
+		},
+		{
+			"uri": "/NewProject/Sources/RegExp.twin",
+			"state": {
+				"cursorState": [
+					{
+						"inSelectionMode": false,
+						"selectionStart": {
+							"lineNumber": 211,
+							"column": 5
+						},
+						"position": {
+							"lineNumber": 211,
+							"column": 5
+						}
+					}
+				],
+				"viewState": {
+					"scrollLeft": 0,
+					"firstPosition": {
+						"lineNumber": 64,
+						"column": 1
+					},
+					"firstPositionDeltaTop": -4
+				},
+				"contributionsState": {
+					"editor.contrib.wordHighlighter": false,
+					"editor.contrib.folding": {
+						"lineCount": 460,
+						"provider": "syntax",
+						"foldedImports": false
+					}
+				}
+			},
+			"isSelected": false
+		},
+		{
+			"uri": "/NewProject/Sources/Testing.twin",
+			"state": {
+				"cursorState": [
+					{
+						"inSelectionMode": false,
+						"selectionStart": {
+							"lineNumber": 1,
+							"column": 1
+						},
+						"position": {
+							"lineNumber": 1,
+							"column": 1
 						}
 					}
 				],
@@ -67,13 +213,48 @@
 				"contributionsState": {
 					"editor.contrib.wordHighlighter": false,
 					"editor.contrib.folding": {
-						"lineCount": 9,
+						"lineCount": 5,
 						"provider": "syntax",
 						"foldedImports": false
 					}
 				}
 			},
-			"isSelected": true
+			"isSelected": false
+		},
+		{
+			"uri": "/NewProject/Packages/WinDevLib/Sources/wdShellCore.twin",
+			"state": {
+				"cursorState": [
+					{
+						"inSelectionMode": true,
+						"selectionStart": {
+							"lineNumber": 10714,
+							"column": 1
+						},
+						"position": {
+							"lineNumber": 10714,
+							"column": 136
+						}
+					}
+				],
+				"viewState": {
+					"scrollLeft": 7,
+					"firstPosition": {
+						"lineNumber": 10695,
+						"column": 1
+					},
+					"firstPositionDeltaTop": -15
+				},
+				"contributionsState": {
+					"editor.contrib.wordHighlighter": false,
+					"editor.contrib.folding": {
+						"lineCount": 13685,
+						"provider": "syntax",
+						"foldedImports": false
+					}
+				}
+			},
+			"isSelected": false
 		}
 	],
 	"debugConsoleEntryHistory": [],
@@ -104,7 +285,78 @@
 		"showHints": false,
 		"showInfos": false
 	},
-	"history": [],
+	"history": [
+		{
+			"path": "/NewProject/Sources/StaticRegex.twin",
+			"positionId": "StaticRegex.InitializeMatcherState",
+			"lineNumber": 4570,
+			"shortTime": "19:26",
+			"time": "2026-07-17T01:26:11.758Z"
+		},
+		{
+			"path": "/NewProject/Sources/StaticRegex.twin",
+			"positionId": "StaticRegex.InRanges",
+			"lineNumber": 3376,
+			"shortTime": "07:07",
+			"time": "2026-07-17T13:07:30.363Z"
+		},
+		{
+			"path": "/NewProject/Sources/StaticRegex.twin",
+			"positionId": "StaticRegex.DfsMatchFrom",
+			"lineNumber": 3446,
+			"shortTime": "07:08",
+			"time": "2026-07-17T13:08:25.790Z"
+		},
+		{
+			"path": "/NewProject/Sources/ModParityTests.twin",
+			"positionId": "modParity.ParityCore",
+			"lineNumber": 60,
+			"shortTime": "07:09",
+			"time": "2026-07-17T13:09:45.982Z"
+		},
+		{
+			"path": "/NewProject/Sources/StaticRegex.twin",
+			"positionId": "StaticRegex.ComputeFirstChar",
+			"lineNumber": 3331,
+			"shortTime": "07:39",
+			"time": "2026-07-17T13:39:51.370Z"
+		},
+		{
+			"path": "/NewProject/Sources/RegExp.twin",
+			"positionId": "modRegexShared",
+			"lineNumber": 447,
+			"shortTime": "10:10",
+			"time": "2026-07-17T16:10:02.407Z"
+		},
+		{
+			"path": "/NewProject/Sources/RegExp.twin",
+			"positionId": "",
+			"lineNumber": 445,
+			"shortTime": "12:01",
+			"time": "2026-07-17T18:01:03.407Z"
+		},
+		{
+			"path": "/NewProject/Sources/RegExp.twin",
+			"positionId": "RegExp.GetNamedCapturesInfo",
+			"lineNumber": 230,
+			"shortTime": "15:04",
+			"time": "2026-07-17T21:04:08.207Z"
+		},
+		{
+			"path": "/NewProject/Sources/StaticRegex.twin",
+			"positionId": "StaticRegex",
+			"lineNumber": 3463,
+			"shortTime": "15:09",
+			"time": "2026-07-17T21:09:09.613Z"
+		},
+		{
+			"path": "/NewProject/Sources/StaticRegex.twin",
+			"positionId": "StaticRegex.SetInput",
+			"lineNumber": 3478,
+			"shortTime": "15:13",
+			"time": "2026-07-17T21:13:13.603Z"
+		}
+	],
 	"toolWindows": [],
 	"bookmarks": {
 		"/NewProject/Sources/StaticRegex.twin": {},
@@ -127,7 +379,14 @@
 		8,
 		9
 	],
-	"findReplaceHistory": {},
+	"findReplaceHistory": {
+		"findHistory": [
+			"matcherstatety",
+			"Do while oppc",
+			"CopyMem",
+			"copymem"
+		]
+	},
 	"findReplaceOptions": {
 		"InsidePackages": false,
 		"WholeWordOnly": false,

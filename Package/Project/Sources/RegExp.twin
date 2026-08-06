@@ -1,6 +1,5 @@
 ' ==========================================================================
-' This file was automatically generated from the ActiveX DLL version source.
-' COM machinery stripped out for twinBASIC package.
+' See https://github.com/GCuser99/tbRegExp for more info.
 ' ==========================================================================
 ' ==========================================================================
 ' WRAPPER — RegExp / Match / MatchCollection / SubMatches (+ modRegexShared)

@@ -5,8 +5,6 @@
         "project.buildType": "Package TWINPACK",
         "project.description": "Regular Expressions Object - Replacement for VBScript.RegExp",
         "project.id": "{E1B23FED-12D0-4166-B1E0-3BE49A6B9C26}",
-        "project.largeAddressAware": true,
-        "project.licence": "MIT",
         "project.name": "tbRegExp",
         "project.optionExplicit": true,
         "project.references": [
@@ -14,7 +12,7 @@
                         "id": "{00020430-0000-0000-C000-000000000046}",
                         "lcid": 0,
                         "name": "OLE Automation",
-                        "path32": "C:\\Windows\\SysWOW64\\stdole2.tlb",
+                        "path32": "C:\\Windows\\SysWow64\\stdole2.tlb",
                         "path64": "C:\\Windows\\System32\\stdole2.tlb",
                         "symbolId": "stdole",
                         "versionMajor": 2,
@@ -22,8 +20,8 @@
                 }
         ],
         "project.settingsVersion": 1,
-        "project.versionMajor": 1,
-        "project.versionMinor": 0,
+        "project.startupObject": "(none)",
+        "project.versionRevision": 4,
         "project.warnings": {
                 "errors": [],
                 "hints": [],
@@ -32,6 +30,9 @@
                 "warnings": []
         },
         "runtime.useUnicodeStandardLibrary": true,
+        "project.versionMajor": 1,
+        "project.versionMinor": 0,
         "project.versionBuild": 0,
-        "project.versionRevision": 4
+        "project.packageVisibility": "PRIVATE",
+        "project.licence": "MIT"
 }

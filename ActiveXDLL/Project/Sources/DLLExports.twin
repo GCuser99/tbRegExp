@@ -1,0 +1,12 @@
+Public Module DLLExports
+    ' these are for use if calling the DLL without registration
+    ' use following format to declare and use in VBA:
+    '
+    ' Public Declare PtrSafe Function New_RegExp Lib "[path to dll folder]\tbRegExp_win64.dll" () As Object
+    ' Dim re As Object  
+    ' Set re = New_RegExp)
+    Public Function New_RegExp() As Object
+        Set New_RegExp = New RegExp
+    End Function
+    
+End Module

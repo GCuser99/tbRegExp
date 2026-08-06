@@ -3,7 +3,7 @@
         "project.appTitle": "tbRegExp",
         "project.buildPath": "${SourcePath}\\Build\\${ProjectName}_${Architecture}.${FileExtension}",
         "project.buildType": "Standard EXE",
-        "project.description": "Regular Expressions Object - Replacement for VBScript.RegExp",
+        "project.description": "tbRegExp Single-File-Drop-in",
         "project.exportPathIsV2": true,
         "project.id": "{EAEAEAEA-EAEA-EAEA-EAEA-EAEAEAEAEA00}",
         "project.name": "tbRegExp",
@@ -39,6 +39,7 @@
         ],
         "project.settingsVersion": 1,
         "project.startupObject": "Form1",
+        "project.versionRevision": 4,
         "project.warnings": {
                 "errors": [],
                 "hints": [],
@@ -49,6 +50,5 @@
         "runtime.useUnicodeStandardLibrary": true,
         "project.versionMajor": 1,
         "project.versionMinor": 0,
-        "project.versionBuild": 0,
-        "project.versionRevision": 4
+        "project.versionBuild": 0
 }

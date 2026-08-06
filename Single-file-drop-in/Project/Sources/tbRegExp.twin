@@ -1,9 +1,6 @@
-' =======================================================================================
-' MIT License - Copyright (c) 2026, GCUser99 (https://github.com/GCUser99/tbRegExp)
-' =======================================================================================
-' This file was automatically generated from the ActiveX DLL version source.
-' COM machinery stripped out and combined into one file for easy project drop-in.
-' =======================================================================================
+' ==========================================================================
+' See https://github.com/GCuser99/tbRegExp for more info.
+' ==========================================================================
 ' ==========================================================================
 ' WRAPPER — RegExp / Match / MatchCollection / SubMatches (+ modRegexShared)
 ' Drop-in replacement for VBScript.RegExp. Engine lives in StaticRegex.twin.

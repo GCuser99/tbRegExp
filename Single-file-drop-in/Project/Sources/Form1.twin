@@ -1,9 +1,9 @@
 [Description("")]
-[FormDesignerId("EAEAEAEA-EAEA-EAEA-EAEA-EAEAEAEAEA01")]
+[FormDesignerId("2FA28C2E-A373-42AB-B631-3CD964A2A43C")]
 [PredeclaredId]
 Class Form1
 
-    Sub New()
-    End Sub
-    
+	Sub New()
+	End Sub
+
 End Class
