@@ -1,8 +1,8 @@
 # This script will scan the registry for all keys associated with install,
 # create a log file, and optionally delete them (not recommended - uninstall via Inno Setup unins000.exe)
 
-$ProgID = "tbFileSysTools"
-$GuidPrefix = "56FFD6A7-62C4-4182-B289-"
+$ProgID = "tbRegExp"
+$GuidPrefix = "BCEDB982-44EB-4F0C-B6E2-"
 $LogPath = ".\COM_Registry_Log.txt"
 $Delete = $false
 
