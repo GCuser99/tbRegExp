@@ -87,7 +87,7 @@ Public Class RegExp
         If mDotAll Then Flags = Flags & "s"
     End Property
     
-    [Description("If 'True', all matches will be returned. If 'False', only the first match will be returned.")]
+    [Description("If 'True', all matches will be returned. If 'False', only the first match will be returned. Defaults to 'False'")]
     Public Property Let Global(ByVal pGlobal As Boolean)
         mGlobal = pGlobal
     End Property
@@ -95,7 +95,7 @@ Public Class RegExp
         Global = mGlobal
     End Property
     
-    [Description("If 'True', '^' pattern will match the beginning of a line after a new line character and '$' will match the end of a line before a new line character. If 'False', '^' will match the beginning of the entire string and '$' will match the end of the entire string.")]
+    [Description("If 'True', '^' pattern will match the beginning of a line after a new line character and '$' will match the end of a line before a new line character. If 'False' (default), '^' will match the beginning of the entire string and '$' will match the end of the entire string.")]
     Public Property Let MultiLine(ByVal pMultiLine As Boolean)
         mMultiLine = pMultiLine
     End Property
@@ -103,7 +103,7 @@ Public Class RegExp
         MultiLine = mMultiLine
     End Property
     
-    [Description("If 'True', '.' pattern will match across new line charactors.")]
+    [Description("If 'True', '.' pattern will match across new line charactors. Defaults to 'False'")]
     Public Property Let DotAll(ByVal pDotAll As Boolean)
         mDotAll = pDotAll
     End Property
@@ -111,7 +111,7 @@ Public Class RegExp
         DotAll = mDotAll
     End Property
     
-    [Description("If 'True', matches will be case-insensitive. If 'False', matches will be case-sensitive.")]
+    [Description("If 'True', matches will be case-insensitive. If 'False', matches will be case-sensitive. Defaults to 'False'")]
     Public Property Let IgnoreCase(ByVal pIgnoreCase As Boolean)
         If pIgnoreCase <> mIgnoreCase Then
             mIgnoreCase = pIgnoreCase
