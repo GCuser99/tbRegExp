@@ -198,18 +198,17 @@ and conditionals.
 
 ---
 
+## Acknowledgements
+
+* **sihlfall** — for [vba-regex](https://github.com/sihlfall/vba-regex), the engine that makes this possible.
+* **fafalone** — for [WinDevLib](https://github.com/fafalone/WinDevLib), source of standardized Win32 api declares.
+* **Wayne Phillips** — for [twinBASIC](https://twinbasic.com).
+
+---
+
 ## License
 
 MIT License. Copyright (c) 2025–2026, GCUser99.
 
 The bundled engine (`StaticRegex`) is a minimally edited version of [sihlfall's vba-regex](https://github.com/sihlfall/vba-regex); see that project for its own
 license terms.
-
----
-
-## Acknowledgements
-
-* **sihlfall** — for [vba-regex](https://github.com/sihlfall/vba-regex), the engine that makes this possible.
-* **fafalone** - for [WinDevLib](https://github.com/fafalone/WinDevLib), source of standardized Win32 api declares.
-* **Wayne Phillips** — for [twinBASIC](https://twinbasic.com).
-
