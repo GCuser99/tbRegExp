@@ -174,7 +174,9 @@ instantly.
 
 **Where it genuinely matters:** very large inputs combined with dense-scanning patterns, and
 pathological catastrophic-backtracking patterns (which are bounded by an internal step limit
-rather than allowed to run away). **Where it doesn't:** the common case of anchored/validating
+rather than allowed to run away). 
+
+**Where it doesn't:** the common case of anchored/validating
 patterns and extraction over normal-sized text, which is at or near parity.
 
 If raw throughput on huge inputs with complex patterns is your priority and a runtime
