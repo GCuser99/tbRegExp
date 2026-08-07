@@ -214,5 +214,4 @@ and conditionals.
 
 MIT License. Copyright (c) 2025–2026, GCUser99.
 
-The bundled engine (`StaticRegex`) is a minimally edited version of [sihlfall's vba-regex](https://github.com/sihlfall/vba-regex); see that project for its own
-license terms.
+The bundled engine (`StaticRegex`) is a minimally edited version of [sihlfall's vba-regex](https://github.com/sihlfall/vba-regex); MIT License.
