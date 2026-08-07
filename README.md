@@ -95,14 +95,14 @@ cannot do:
 **`DotAll` — let `.` match newlines.** A `DotAll` property (the ECMAScript `s` flag):
 
 ```vba
-re.Pattern = "start.\*end"
+re.Pattern = "start.*end"
 re.DotAll = True          ' now '.' spans line breaks
 ```
 
 **`Split` — split a string on a pattern.** A method `VBScript.RegExp` never provided:
 
 ```vba
-re.Pattern = "\s\*,\s\*"
+re.Pattern = "\s*,\s*"
 Dim parts As Collection
 Set parts = re.Split("a , b,c ,  d")   ' -> "a","b","c","d"
 ```
@@ -127,14 +127,14 @@ re.Replace("2026-07", "$<m>/$<y>")   ' -> 07/2026
 **Lookbehind** — `(?<=...)` and `(?<!...)`, in addition to lookahead:
 
 ```vba
-re.Pattern = "(?<=\$)\\d+"     ' digits preceded by a '$'
+re.Pattern = "(?<=$)\d+"     ' digits preceded by a '$'
 ```
 
 **Inline mode modifiers** — both the whole-group form and the scoped form, for `i`/`m`/`s`:
 
 ```vba
 re.Pattern = "(?i)hello"          ' case-insensitive from here on
-re.Pattern = "foo(?s:.\*)bar"      ' DotAll only inside the group
+re.Pattern = "foo(?s:.*)bar"      ' DotAll only inside the group
 re.Pattern = "(?i:abc)DEF"        ' case-insensitive for 'abc' only
 ```
 
@@ -165,12 +165,12 @@ instantly.
 
 |Operation|Example|Relative to `VBScript.RegExp`|Notes|
 |-|-|-:|-|
-|`Test`, short input|validate a phone/date|\~1–2×|At/near parity|
-|`Execute` (global), no groups|`\\w+` over large text|\~1–1.5×|At/near parity|
-|`Execute` (global), with groups|`(\\d{4})-(\\d{2})-(\\d{2})`|\~3–5×|Cost is per-match result objects|
-|`Replace`, sparse single-char class|`\\d` → `#` over large text|\~20–30×|Many small operations over a big string|
-|`Test`, long non-matching scan|rare literal, large text|\~15–25×|Dominated by scanning cost|
-|Dense-first-set scan|`\[\\w.]+@…`, wide alternation|\~7–16×|Every position is a real match attempt|
+|`Test`, short input|validate a phone/date|~1–2×|At/near parity|
+|`Execute` (global), no groups|`\w+` over large text|~1–1.5×|At/near parity|
+|`Execute` (global), with groups|`(\d{4})-(\d{2})-(\d{2})`|~3–5×|Cost is per-match result objects|
+|`Replace`, sparse single-char class|`\d` → `#` over large text|~20–30×|Many small operations over a big string|
+|`Test`, long non-matching scan|rare literal, large text|~15–25×|Dominated by scanning cost|
+|Dense-first-set scan|`[\w.]+@…`, wide alternation|~7–16×|Every position is a real match attempt|
 
 **Where it genuinely matters:** very large inputs combined with dense-scanning patterns, and
 pathological catastrophic-backtracking patterns (which are bounded by an internal step limit
@@ -189,12 +189,12 @@ self-contained and portable.
 
 Unicode support matches `VBScript.RegExp`: literal BMP characters compare correctly and
 case-insensitive matching folds BMP characters (including accented Latin, Greek, Cyrillic).
-Not supported (as with `VBScript.RegExp`): `\\p{...}` Unicode property classes, and
+Not supported (as with `VBScript.RegExp`): `\p{...}` Unicode property classes, and
 supplementary/astral characters above U+FFFF are handled as surrogate pairs rather than
-single code points. `\\w`, `\\d`, and `\\b` are ASCII, as in `VBScript.RegExp`.
+single code points. `\w`, `\d`, and `\b` are ASCII, as in `VBScript.RegExp`.
 
-Other constructs not currently supported: named backreferences (`\\k<name>` — numbered
-backreferences like `\\1` do work), atomic groups / possessive quantifiers, `\\A`/`\\Z` anchors,
+Other constructs not currently supported: named backreferences (`\k<name>` — numbered
+backreferences like `\1` do work), atomic groups / possessive quantifiers, `\A`/`\Z` anchors,
 and conditionals.
 
 > These limitations are shared with the engine this library replaces, and with the native
