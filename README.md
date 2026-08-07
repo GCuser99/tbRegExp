@@ -205,7 +205,7 @@ and conditionals.
 ## Acknowledgements
 
 * **sihlfall** — for [vba-regex](https://github.com/sihlfall/vba-regex), the engine that makes this possible.
-* **fafalone** — for [WinDevLib](https://github.com/fafalone/WinDevLib), source of standardized Win32 api declares.
+* **fafalone** — for [WinDevLib](https://github.com/fafalone/WinDevLib), source of standardized Win32 API declares.
 * **Wayne Phillips** — for [twinBASIC](https://twinbasic.com).
 
 ---
