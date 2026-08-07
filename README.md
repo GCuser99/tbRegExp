@@ -121,7 +121,7 @@ Debug.Print m.SubMatches(0),      m.SubMatches(1)          ' still by index too
 
 ```vba
 re.Pattern = "(?<y>\d{4})-(?<m>\d{2})"
-re.Replace("2026-07", "$<m>/$<y>")   ' -> 07/2026
+Debug.Print re.Replace("2026-07", "$<m>/$<y>")   ' -> 07/2026
 ```
 
 **Lookbehind** — `(?<=...)` and `(?<!...)`, in addition to lookahead:
