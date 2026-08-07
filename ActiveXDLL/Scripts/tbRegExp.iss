@@ -31,8 +31,8 @@
 // top of the [Code] section. Set each flag to True for the Office apps the DLL
 // is intended to support. This affects the "supported app" message shown when
 // no compatible Office install is found, and which "Trusted Locations" registry
-// entries are written. Note that both DLL bitnesses are now always installed
-// regardless of which Office bitness (if any) is detected.
+// entries are written. Note that both DLL bitnesses are installed regardless
+// of which Office bitness (if any) is detected.
 //
 // ---------------------------------------------------------------------------
 // REUSING THIS SCRIPT AS A TEMPLATE
@@ -71,6 +71,25 @@
 #define RequirementsFilePath ".\readme.txt"
 #define SetupOutputFolderPath "..\Installer" 
 #define AppVersion GetVersionNumbersString(DLL64FilePath)
+
+// ---- Office app support configuration (user settings) ----
+// Set each to "True" or "False" (KEEP THE QUOTES). They affect the user-facing
+// "supported apps" message and which Trusted Location registry entries are
+// written. Both DLL bitnesses are always installed regardless of these flags.
+#define SUPPORT_EXCEL   "False"
+#define SUPPORT_ACCESS  "False"
+#define SUPPORT_WORD    "False"
+#define SUPPORT_PPT     "False"
+#define SUPPORT_OUTLOOK "False"
+// Master switch for Office-specific behavior (e.g. the Office-detection prompt).
+//   Office DLL shipping example docs : OFFICE_AWARE="True",  REGISTER_TRUSTED_LOCS="True"
+//   Office DLL, no example docs      : OFFICE_AWARE="True",  REGISTER_TRUSTED_LOCS="False"
+//   General / non-Office DLL         : OFFICE_AWARE="False", REGISTER_TRUSTED_LOCS="False"
+//   General / non-Office DLL         : OFFICE_AWARE="False", REGISTER_TRUSTED_LOCS="True"
+#define OFFICE_AWARE "False"
+// When "True", adds {app}\examples as a trusted location for each supported and
+// installed Office app.
+#define REGISTER_TRUSTED_LOCS "False"
 
 [Setup]
 AppId={{#AppGUID}
@@ -161,14 +180,6 @@ Source: {#DLL32FilePath}; DestDir: {app};  Flags: ignoreversion regserver 32bit;
 ; Source: {#INIFilePath}; DestDir: {app};  Flags: ignoreversion uninsneveruninstall onlyifdoesntexist; Check: IsWin64; Components: pkg_core;
 ;Source: {#TestFolderPath}\SolverEventSink.cls; DestDir: {app}\examples; Flags: ignoreversion; Components: pkg_docs; 
 ;Source: {#TestFolderPath}\sample_Engineering_Design.bas; DestDir: {app}\examples; Flags: ignoreversion; Components: pkg_docs;
-;Source: {#TestFolderPath}\sample_Maximizing_Income.bas; DestDir: {app}\examples; Flags: ignoreversion; Components: pkg_docs;
-;Source: {#TestFolderPath}\sample_Portfolio_of_Securities.bas; DestDir: {app}\examples; Flags: ignoreversion; Components: pkg_docs;
-;Source: {#TestFolderPath}\sample_Product_Mix.bas; DestDir: {app}\examples; Flags: ignoreversion; Components: pkg_docs;
-;Source: {#TestFolderPath}\sample_Quick_Tour.bas; DestDir: {app}\examples; Flags: ignoreversion; Components: pkg_docs;
-;Source: {#TestFolderPath}\sample_Shipping_Routes.bas; DestDir: {app}\examples; Flags: ignoreversion; Components: pkg_docs;
-;Source: {#TestFolderPath}\sample_Staff_Scheduling.bas; DestDir: {app}\examples; Flags: ignoreversion; Components: pkg_docs;
-;Source: {#TestFolderPath}\sample_Using_ShowTrial_Events.bas; DestDir: {app}\examples; Flags: ignoreversion; Components: pkg_docs;
-;Source: {#TestFolderPath}\sample_Using_Callback_Macro.bas; DestDir: {app}\examples; Flags: ignoreversion; Components: pkg_docs;
 ;Source: {#TestFolderPath}\readme.md; DestDir: {app}\examples; Flags: ignoreversion; Components: pkg_docs;
 Source: {#UtilitiesPath}\analize_registry.ps1; DestDir: {app}\utilities; Flags: ignoreversion; Components: pkg_utils;
 Source: {#LicenseFilePath} ; DestDir: "{app}"; Flags: ignoreversion; Components: pkg_core;
@@ -244,34 +255,34 @@ Root: HKCU; Subkey: "{code:GetTrustedLocSubkey|PowerPoint}"; \
 [Code]
 const
   // ---- Office app support configuration ----
-  // Set to True for each MS Office app the DLL is intended to support.
+  // These values are configured via the #define block at the TOP of the script
+  // (SUPPORT_EXCEL, SUPPORT_ACCESS, ...). The lines below just inherit those
+  // compile-time defines; edit the flags up top, not here.
   // Affects the user-facing "supported apps" message in InitializeSetup and
-  // which Trusted Location registry entries are written. It no longer controls
+  // which Trusted Location registry entries are written. It does not control
   // which DLL bitness is installed — both bitnesses are always installed.
-  SUPPORT_EXCEL   = True;
-  SUPPORT_ACCESS  = True;
-  SUPPORT_WORD    = True;
-  SUPPORT_PPT     = True;
-  SUPPORT_OUTLOOK = True;
+  SUPPORT_EXCEL   = {#SUPPORT_EXCEL};
+  SUPPORT_ACCESS  = {#SUPPORT_ACCESS};
+  SUPPORT_WORD    = {#SUPPORT_WORD};
+  SUPPORT_PPT     = {#SUPPORT_PPT};
+  SUPPORT_OUTLOOK = {#SUPPORT_OUTLOOK};
 
   // ---- Office-aware behavior ----
-  // Master switch for Office-specific behavior. Set False for DLLs that have
+  // Configured via the #define block at the TOP of the script (OFFICE_AWARE).
+  // Master switch for Office-specific behavior. Set "False" for DLLs that have
   // nothing to do with Office: this skips the Office-detection prompt in
   // InitializeSetup so a machine without Office isn't asked to confirm. The
   // install/registration of both DLL bitnesses is unaffected either way.
-  // Recommended settings:
-  //   Office DLL shipping example docs : OFFICE_AWARE=True,  REGISTER_TRUSTED_LOCS=True
-  //   Office DLL, no example docs      : OFFICE_AWARE=True,  REGISTER_TRUSTED_LOCS=False
-  //   General / non-Office DLL         : OFFICE_AWARE=False, REGISTER_TRUSTED_LOCS=False
-  OFFICE_AWARE = True;
+  OFFICE_AWARE = {#OFFICE_AWARE};
 
   // ---- Trusted Locations registration ----
-  // When True, the installer adds {app}\examples as a trusted location for
-  // each supported and installed Office app. Set to False for DLLs that don't
-  // ship example documents or don't need their install folder trusted.
-  // (The Has* runtime checks also gate these, so nothing is written for an
-  // app that isn't installed even when this is True.)
-  REGISTER_TRUSTED_LOCS = True;
+  // Configured via the #define block at the TOP of the script
+  // (REGISTER_TRUSTED_LOCS). When "True", the installer adds {app}\examples as a
+  // trusted location for each supported and installed Office app. Set to "False"
+  // for DLLs that don't ship example documents or don't need their install
+  // folder trusted. (The Has* runtime checks also gate these, so nothing is
+  // written for an app that isn't installed even when this is True.)
+  REGISTER_TRUSTED_LOCS = {#REGISTER_TRUSTED_LOCS};
 
   // ---- Other constants ----
   APPPATHSKEY = 'SOFTWARE\Microsoft\Windows\CurrentVersion\App Paths';
@@ -305,11 +316,13 @@ begin
 end;
 
 // Returns True if trusted-location registry entries should be written for
-// supported Office apps. Wrapped in a function (rather than referenced as a
+// supported Office apps. Gated on OFFICE_AWARE so that turning off Office
+// behavior at the top also suppresses the trusted-location writes, regardless
+// of REGISTER_TRUSTED_LOCS. Wrapped in a function (rather than referenced as a
 // constant directly) to avoid Pascal Script's constant-folding warnings.
 function ShouldRegisterTrustedLocs(): Boolean;
 begin
-  Result := REGISTER_TRUSTED_LOCS;
+  Result := IsSupported(OFFICE_AWARE) and IsSupported(REGISTER_TRUSTED_LOCS);
 end;
 
 // Returns a human-readable, comma-separated list of supported Office apps,
