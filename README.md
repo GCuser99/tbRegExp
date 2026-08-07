@@ -52,7 +52,7 @@ The library comes in three forms — pick whichever fits how you work:
 |**Single-file drop-in**|You want one `.twin` in your project, no reference|Manual|
 |**ActiveX DLL**|You're calling from VBA or another COM host|Re-install the DLL (Inno script included)|
 
-> **Note:** You don't have to clone this repo to use the package. In your own project, go to **Project → References → Available Packages** and check **Regular Expression Engine** - twinBASIC pulls it from the package server. Clone the repo only if you want to build the DLL, modify the source, or host your own local package.
+> **Note:** You don't have to clone this repo to use the package. In your own project, go to **Project → References → Available Packages** and check **Regular Expression Object** - twinBASIC pulls it from the package server. Clone the repo only if you want to build the DLL, modify the source, or host your own local package.
 
 ---
 
