@@ -145,7 +145,7 @@ re.Flags = "gis"   ' Global + IgnoreCase + DotAll  (g m i s)
 
 ## Performance
 
-An honest summary: the underlying **matching engine is competitive with the native
+A summary: the underlying **matching engine is competitive with the native
 `VBScript.RegExp` engine — and often faster** on the raw match. Where this library costs
 more than `VBScript.RegExp`, the overhead is concentrated in specific pattern classes and
 in building result objects, not in matching itself.
@@ -156,15 +156,14 @@ look larger than they matter in practice, because they are measured on deliberat
 (200 KB) inputs to expose the costs; on everyday inputs both engines finish effectively
 instantly.
 
-> **These figures are provisional.** They were captured with a compiled build over 200 KB
-> inputs on a single machine and vary with input size, pattern shape, and machine state.
-> They will be refreshed once LLVM optimization is available.
+> **These figures are provisional.** They were captured with a compiled build with no optimization.
+> They will be refreshed once LLVM optimization is available in twinBASIC.
 
 *Lower is better; **1.0× = parity** with`VBScript.RegExp`.*
 
 |Operation|Example|Relative to `VBScript.RegExp`|Notes|
 |-|-|-:|-|
-|`Test`, short input|validate a phone/date|\~1–2×|Both sub-microsecond; multiple is noise|
+|`Test`, short input|validate a phone/date|\~1–2×|At/near parity|
 |`Execute` (global), no groups|`\\w+` over large text|\~1–1.5×|At/near parity|
 |`Execute` (global), with groups|`(\\d{4})-(\\d{2})-(\\d{2})`|\~3–5×|Cost is per-match result objects|
 |`Replace`, sparse single-char class|`\\d` → `#` over large text|\~20–30×|Many small operations over a big string|
@@ -210,6 +209,6 @@ license terms.
 
 ## Acknowledgements
 
-* **sihlfall** — for `vba-regex`, the engine that makes this possible.
-* **Wayne Phillips** — for twinBASIC.
+* **sihlfall** — for [vba-regex](https://github.com/sihlfall/vba-regex), the engine that makes this possible.
+* **Wayne Phillips** — for [twinBASIC](https://twinbasic.com).
 
