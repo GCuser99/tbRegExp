@@ -66,7 +66,7 @@ re.Global = True
 Dim m As Match
 For Each m In re.Execute("2025-08-26 and 2026-07-29")
     Debug.Print m.Value, m.SubMatches(0), m.SubMatches(1), m.SubMatches(2)
-Next
+Next m
 ```
 
 The object model mirrors `VBScript.RegExp` exactly, including zero-based indexing:
