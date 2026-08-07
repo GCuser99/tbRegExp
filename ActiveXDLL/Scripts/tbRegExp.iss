@@ -68,7 +68,7 @@
 #define TestFolderPath "..\Tests"
 #define UtilitiesPath "..\Scripts"
 ; #define LogoFilePath ".\logo_setup.bmp"
-#define RequirementsFilePath ".\readme.rtf"
+#define RequirementsFilePath ".\readme.txt"
 #define SetupOutputFolderPath "..\Installer" 
 #define AppVersion GetVersionNumbersString(DLL64FilePath)
 
@@ -141,7 +141,7 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 [Components]
 Name: "pkg_core"; Description: "{#AppName} ActiveX Dll"; Types: full compact custom; Flags: fixed;
 Name: "pkg_utils";  Description: "PowerShell Utilities"; Types: full compact custom; Flags: fixed;
-Name: "pkg_docs";  Description: "MS Excel Test Documents"; Types: full compact custom;
+; Name: "pkg_docs";  Description: "MS Excel Test Documents"; Types: full compact custom;
   
 [Messages]
 // WelcomeLabel2=This will install [name/ver] on your computer.%n%nIt is recommended that you close all other applications before continuing.
