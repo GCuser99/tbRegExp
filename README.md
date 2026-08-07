@@ -62,7 +62,7 @@ The package can be referenced through twinBASIC's Package Server. In the IDE, cl
 
 ```vba
 Dim re As New RegExp
-re.Pattern = "(\\d{4})-(\\d{2})-(\\d{2})"
+re.Pattern = "(\d{4})-(\d{2})-(\d{2})"
 re.Global = True
 
 Dim m As Match
@@ -102,7 +102,7 @@ re.DotAll = True          ' now '.' spans line breaks
 **`Split` — split a string on a pattern.** A method `VBScript.RegExp` never provided:
 
 ```vba
-re.Pattern = "\\s\*,\\s\*"
+re.Pattern = "\s\*,\s\*"
 Dim parts As Collection
 Set parts = re.Split("a , b,c ,  d")   ' -> "a","b","c","d"
 ```
@@ -110,7 +110,7 @@ Set parts = re.Split("a , b,c ,  d")   ' -> "a","b","c","d"
 **Named capture groups** — `(?<name>...)`, retrievable by name from `SubMatches`:
 
 ```vba
-re.Pattern = "(?<year>\\d{4})-(?<month>\\d{2})"
+re.Pattern = "(?<year>\d{4})-(?<month>\d{2})"
 Dim m As Match
 Set m = re.Execute("2026-07").Item(0)
 Debug.Print m.SubMatches("year"), m.SubMatches("month")   ' by name
@@ -127,7 +127,7 @@ re.Replace("2026-07", "$<m>/$<y>")   ' -> 07/2026
 **Lookbehind** — `(?<=...)` and `(?<!...)`, in addition to lookahead:
 
 ```vba
-re.Pattern = "(?<=\\$)\\d+"     ' digits preceded by a '$'
+re.Pattern = "(?<=\$)\\d+"     ' digits preceded by a '$'
 ```
 
 **Inline mode modifiers** — both the whole-group form and the scoped form, for `i`/`m`/`s`:
