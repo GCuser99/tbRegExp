@@ -127,15 +127,25 @@ Debug.Print re.Replace("2026-07", "$<m>/$<y>")   ' -> 07/2026
 **Lookbehind** — `(?<=...)` and `(?<!...)`, in addition to lookahead:
 
 ```vba
-re.Pattern = "(?<=$)\d+"     ' digits preceded by a '$'
+re.Pattern = "(?<=\$)\d+"    ' digits preceded by a literal '$'
+Debug.Print re.Execute("$123").Item(0).Value  ' -> 123
 ```
 
 **Inline mode modifiers** — both the whole-group form and the scoped form, for `i`/`m`/`s`:
 
 ```vba
-re.Pattern = "(?i)hello"          ' case-insensitive from here on
-re.Pattern = "foo(?s:.*)bar"      ' DotAll only inside the group
-re.Pattern = "(?i:abc)DEF"        ' case-insensitive for 'abc' only
+' (?i) - case-insensitive from this point on
+re.Pattern = "(?i)hello"
+Debug.Print re.Test("HELLO there")            ' -> True
+
+' (?s:...) - DotAll for the group only, so '.' spans the line break
+re.Pattern = "foo(?s:.*)bar"
+Debug.Print re.Test("foo" & vbCrLf & "bar")   ' -> True
+
+' (?i:...) - case-insensitive for 'abc' only; 'DEF' stays case-sensitive
+re.Pattern = "(?i:abc)DEF"
+Debug.Print re.Test("ABCDEF")                 ' -> True
+Debug.Print re.Test("ABCdef")                 ' -> False  ('def' is not 'DEF')
 ```
 
 **A `Flags` convenience property** — set several options from one string:
