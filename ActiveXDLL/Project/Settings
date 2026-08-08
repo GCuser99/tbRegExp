@@ -40,7 +40,7 @@
         "project.settingsVersion": 1,
         "project.startupObject": "(none)",
         "project.useProjectIdForTypeLibraryId": true,
-        "project.versionRevision": 5,
+        "project.versionRevision": 6,
         "project.warnings": {
                 "errors": [],
                 "hints": [],

@@ -73,6 +73,13 @@
 #define AppVersion GetVersionNumbersString(DLL64FilePath)
 
 // ---- Office app support configuration (user settings) ----
+// Master switch for Office-specific behavior (e.g. the Office-detection prompt).
+//   Office DLL shipping example docs : OFFICE_AWARE="True",  REGISTER_TRUSTED_LOCS="True"
+//   Office DLL, no example docs      : OFFICE_AWARE="True",  REGISTER_TRUSTED_LOCS="False"
+//   General / non-Office DLL         : OFFICE_AWARE="False", REGISTER_TRUSTED_LOCS="False"
+#define OFFICE_AWARE "False"
+
+// Only applicable if OFFICE_AWARE is "True"
 // Set each to "True" or "False" (KEEP THE QUOTES). They affect the user-facing
 // "supported apps" message and which Trusted Location registry entries are
 // written. Both DLL bitnesses are always installed regardless of these flags.
@@ -81,12 +88,8 @@
 #define SUPPORT_WORD    "False"
 #define SUPPORT_PPT     "False"
 #define SUPPORT_OUTLOOK "False"
-// Master switch for Office-specific behavior (e.g. the Office-detection prompt).
-//   Office DLL shipping example docs : OFFICE_AWARE="True",  REGISTER_TRUSTED_LOCS="True"
-//   Office DLL, no example docs      : OFFICE_AWARE="True",  REGISTER_TRUSTED_LOCS="False"
-//   General / non-Office DLL         : OFFICE_AWARE="False", REGISTER_TRUSTED_LOCS="False"
-//   General / non-Office DLL         : OFFICE_AWARE="False", REGISTER_TRUSTED_LOCS="True"
-#define OFFICE_AWARE "False"
+
+// Only applicable if OFFICE_AWARE is "True"
 // When "True", adds {app}\examples as a trusted location for each supported and
 // installed Office app.
 #define REGISTER_TRUSTED_LOCS "False"
@@ -177,7 +180,7 @@ ClickFinish=Click Finish to complete and exit Setup.
 ; each build registers into its own registry view with no conflict.
 Source: {#DLL64FilePath}; DestDir: {app};  Flags: ignoreversion regserver 64bit; Components: pkg_core;
 Source: {#DLL32FilePath}; DestDir: {app};  Flags: ignoreversion regserver 32bit; Components: pkg_core;
-; Source: {#INIFilePath}; DestDir: {app};  Flags: ignoreversion uninsneveruninstall onlyifdoesntexist; Check: IsWin64; Components: pkg_core;
+;Source: {#INIFilePath}; DestDir: {app};  Flags: ignoreversion uninsneveruninstall onlyifdoesntexist; Check: IsWin64; Components: pkg_core;
 ;Source: {#TestFolderPath}\SolverEventSink.cls; DestDir: {app}\examples; Flags: ignoreversion; Components: pkg_docs; 
 ;Source: {#TestFolderPath}\sample_Engineering_Design.bas; DestDir: {app}\examples; Flags: ignoreversion; Components: pkg_docs;
 ;Source: {#TestFolderPath}\readme.md; DestDir: {app}\examples; Flags: ignoreversion; Components: pkg_docs;

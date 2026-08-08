@@ -4,8 +4,6 @@
 ' ==========================================================================
 ' WRAPPER — RegExp / Match / MatchCollection / SubMatches (+ modRegexShared)
 ' Drop-in replacement for VBScript.RegExp. Engine lives in StaticRegex.twin.
-' Local performance patches here (grep "PERF PATCH"); engine patches 01-03
-' are in StaticRegex.twin. Validated by modParity, measured by modBench.
 '
 ' Lazy / shared-empty SubMatches. Match doesn't allocate a
 '   SubMatches + Collection per match; group-less matches share one empty
@@ -77,7 +75,7 @@ Public Class RegExp
         pFlags = LCase(pFlags)
         mGlobal = CBool(InStr(pFlags, "g"))
         mMultiLine = CBool(InStr(pFlags, "m"))
-        IgnoreCase = CBool(InStr(pFlags, "i")) 'let property to handle isInitialized flag 
+        IgnoreCase = CBool(InStr(pFlags, "i")) ' assign via the property (not mIgnoreCase) so its recompile-on-change side effect fires
         mDotAll = CBool(InStr(pFlags, "s"))
     End Property
     Public Property Get Flags() As String
@@ -139,9 +137,7 @@ Public Class RegExp
         Dim oMatches As MatchCollection
         Dim oMatch As Match
         Dim i As Long
-        'Dim submatchString As String
         Dim matchStart As Long, matchLength As Long
-        'Dim colNamedKeyMap As New Collection
         
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
