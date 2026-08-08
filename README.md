@@ -36,7 +36,7 @@ The heavy lifting â€” the actual regular-expressions compilation and matching â€
 
 > https://github.com/sihlfall/vba-regex
 
-Please star and support that project. The engine module (`StaticRegex`) is sihlfall's
+Please star and support that project. The engine module used here (`StaticRegex`) is sihlfall's
 work, carrying a few small, self-contained performance tweaks (clearly documented); the original base is
 available in sihlfall's [aio folder](https://github.com/sihlfall/vba-regex/tree/master/aio).
 
