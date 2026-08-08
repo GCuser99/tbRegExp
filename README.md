@@ -158,7 +158,7 @@ look larger than they matter in practice, because they are measured on deliberat
 (200 KB) inputs to expose the costs; on everyday inputs both engines finish effectively
 instantly.
 
-> **These figures are provisional.** They were captured with a compiled build with no optimization.
+> **These figures are provisional.** They were captured using a compiled build with no optimization.
 > They will be refreshed once LLVM optimization is available in twinBASIC.
 
 *Lower is better; **1.0× = parity** with`VBScript.RegExp`.*
