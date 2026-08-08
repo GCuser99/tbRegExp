@@ -96,7 +96,10 @@ cannot do:
 
 ```vba
 re.Pattern = "start.*end"
-re.DotAll = True          ' now '.' spans line breaks
+re.DotAll = True                                  ' now '.' spans line breaks
+Debug.Print re.Test("start" & vbCrLf & "end")     ' -> True
+re.DotAll = False                                 ' default: '.' stops at a line break
+Debug.Print re.Test("start" & vbCrLf & "end")     ' -> False
 ```
 
 **`Split` — split a string on a pattern.** A method `VBScript.RegExp` never provided:
