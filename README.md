@@ -52,7 +52,7 @@ The library comes in three forms — pick whichever fits how you work:
 |**Single-file drop-in**|You want one `.twin` in your project, no reference|Manual|
 |**ActiveX DLL**|You're calling from VBA or another COM host|Re-install the DLL (Inno script included)|
 
-The package can be referenced through twinBASIC's Package Server. In the IDE, click References -> Available Packages. Scroll to find the entry and click the checkbox on the left of the entry. Then click "Apply Changes" button in lower-right.
+The package can be referenced through twinBASIC's Package Server. In the IDE, click **References -> Available Packages**. Scroll to find the entry and click the checkbox on the left of the entry. Then click **Apply Changes** button in lower-right.
 
 <img src="https://github.com/GCuser99/tbRegExp/blob/main/Images/package install.png" alt="Package" width=90%>
 
