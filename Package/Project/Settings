@@ -21,7 +21,8 @@
         ],
         "project.settingsVersion": 1,
         "project.startupObject": "(none)",
-        "project.versionRevision": 6,
+        "project.versionMinor": 1,
+        "project.versionRevision": 0,
         "project.warnings": {
                 "errors": [],
                 "hints": [],
@@ -31,7 +32,6 @@
         },
         "runtime.useUnicodeStandardLibrary": true,
         "project.versionMajor": 1,
-        "project.versionMinor": 0,
         "project.versionBuild": 0,
         "project.packageVisibility": "PRIVATE",
         "project.licence": "MIT"

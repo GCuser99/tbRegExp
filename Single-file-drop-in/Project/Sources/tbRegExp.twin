@@ -531,6 +531,7 @@ Private Module StaticRegex
     '
     ' PATCH 05 - make BytecodeDescriptionConstant Enum Public for RegExp use
     '
+    ' PATCH 06 - widen IsIdentifierChar from excepting only a-z, A-Z to also 0-9, _
     ' ==========================================================================
     Option Private Module
     Option Explicit
@@ -2857,7 +2858,7 @@ Private Module StaticRegex
                         outToken.t = RETOK_ASSERT_START_POS_LOOKBEHIND
                     ElseIf x = UNICODE_EXCLAMATION Then
                         outToken.t = RETOK_ASSERT_START_NEG_LOOKBEHIND
-                    ElseIf IsIdentifierChar(x) Then
+                    ElseIf IsIdentifierStart(x) Then     '>>> PATCH 06 was: IsIdentifierChar(x) <<<
                         With lexCtx
                             val1 = .identifierTree.nEntries
                             val2 = .iCurrent - 1
@@ -3338,10 +3339,21 @@ Private Module StaticRegex
         LexerParseLegacyOctal = cp
     End Function
 
-    Private Function IsIdentifierChar(ByVal c As Long) As Boolean
-        ' Todo: Temporary Hack.
-        IsIdentifierChar = ((c >= AscW("A")) And (c <= AscW("Z"))) Or ((c >= AscW("a")) And (c <= AscW("z")))
+    '>>> PATCH 06 identifier-chars: widen group names to [A-Za-z_][A-Za-z0-9_]*
+    ' First character of a group name: letter or underscore (NOT a digit, to avoid
+    ' ambiguity with numbered backreferences \1 / $1).
+    Private Function IsIdentifierStart(ByVal c As Long) As Boolean
+        IsIdentifierStart = ((c >= AscW("A")) And (c <= AscW("Z"))) _
+                         Or ((c >= AscW("a")) And (c <= AscW("z"))) _
+                         Or (c = AscW("_"))
     End Function
+
+    ' Subsequent characters: identifier-start set plus digits.
+    Private Function IsIdentifierChar(ByVal c As Long) As Boolean
+        IsIdentifierChar = IsIdentifierStart(c) _
+                        Or ((c >= AscW("0")) And (c <= AscW("9")))
+    End Function
+    '<<< PATCH 06 identifier-chars
 
     Private Function Advance(ByRef lexCtx As LexerContext) As Long
         Dim lower As Long, upper As Long
