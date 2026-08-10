@@ -105,6 +105,7 @@ Debug.Print re.Test("start" & vbCrLf & "end")     ' -> False
 **`Split` — split a string on a pattern.** A method `VBScript.RegExp` never provided:
 
 ```vba
+re.Global = True
 re.Pattern = "\s*,\s*"
 Dim parts As Collection
 Set parts = re.Split("a , b,c ,  d")   ' -> "a","b","c","d"
