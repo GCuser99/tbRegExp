@@ -20,7 +20,7 @@ Private Module StaticRegex
     '
     ' ==========================================================================
     ' LOCAL PERFORMANCE PATCHES BY GCuser99:
-    ' All edits are banner-marked; grep "PATCH" to find every site.
+    ' All edits are banner-marked; search "PATCH" to find every site.
     ' None of these affect the RegExp/Match/SubMatches/MatchCollection wrapper,
     ' which is independent of them.
     '

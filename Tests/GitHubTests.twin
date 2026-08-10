@@ -197,7 +197,7 @@ Private Module GitHubTests
         Debug.Assert parts(4) = "2"
         Debug.Assert parts(5) = "c"
 
-        '------------------- Flags convenience property ----------------------
+        '------------------- Flags convenience property (beyond COM) ------------
         Set re = New RegExp
         re.Flags = "gi"                              ' Global + IgnoreCase
         re.Pattern = "cat"
@@ -215,7 +215,30 @@ Private Module GitHubTests
         ' empty pattern matches empty at each position (matches COM)
         re.Pattern = "": reCom.Pattern = re.Pattern
         Debug.Assert re.Test("abc") = reCom.Test("abc")                    ' True
+        
+        '-------------------- Validity / diagnostics (beyond COM) ------------
+        ' IsValid / LastError let you check a pattern without raising.
+        re.Pattern = "a(b)c"                         ' well-formed
+        Debug.Assert re.IsValid = True
+        Debug.Assert Len(re.LastError) = 0
 
+        re.Pattern = "(abc"                          ' unclosed group
+        Debug.Assert re.IsValid = False
+        Debug.Assert Len(re.LastError) > 0
+
+        re.Pattern = "[z-a]"                         ' reversed character range
+        Debug.Assert re.IsValid = False
+
+        re.Pattern = "*abc"                          ' quantifier with nothing to repeat
+        Debug.Assert re.IsValid = False
+
+        re.Pattern = "(?<1st>\d)"                    ' group name may not start with a digit
+        Debug.Assert re.IsValid = False
+
+        re.Pattern = "(?<year_1>\d{4})"              ' letters/digits/underscore names are OK
+        Debug.Assert re.IsValid = True
+        Debug.Assert re.Execute("2026")(0).SubMatches("year_1") = "2026"
+        
         Debug.Print "testSurface: all checks passed"
     End Sub
 

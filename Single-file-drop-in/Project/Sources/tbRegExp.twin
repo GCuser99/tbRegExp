@@ -141,7 +141,7 @@ Public Class RegExp
         
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
-    
+
         StaticRegex.InitializeMatcherState matcherState, Not mGlobal, mMultiLine, mDotAll
     
         Dim colNames As New Collection
@@ -218,7 +218,7 @@ Public Class RegExp
         Replace = StaticRegex.ReplaceByRegEx(regex, replaceString, sourceString, Not mGlobal, mMultiLine, mDotAll)
     End Function
     
-    [Description("Splits an input string into an array of substrings at the positions defined by a regular expression match.")]
+    [Description("Splits an input string into an array of substrings at the positions defined by a regular expression match. Needs Global Property set to 'True'.")]
     Public Function Split(ByVal sourceString As String) As Collection
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
@@ -252,10 +252,15 @@ Public Class RegExp
         mCompileAttempted = True
         mLastErrNumber = 0
         mLastError = vbNullString
+
         On Error Resume Next
         StaticRegex.InitializeRegex regex, mPattern, mIgnoreCase
         mLastErrNumber = Err.Number
-        mLastError = Err.Description
+        If mLastErrNumber = 0 Then
+            mLastError = vbNullString
+        Else
+            mLastError = ErrText(mLastErrNumber, Err.Description)
+        End If
         On Error GoTo 0
         mIsValid = (mLastErrNumber = 0)
     End Sub
@@ -287,6 +292,61 @@ Public Class RegExp
         mIgnoreCase = False
         mDotAll = False
     End Sub
+    
+    ' Maps an engine REGEX_ERR_* number to a human-readable description.
+    ' Offsets mirror StaticRegex's error enum (REGEX_ERR = vbObjectError + 3000).
+    Private Function DescribeRegexError(ByVal errNum As Long) As String
+        Const BASE As Long = vbObjectError + 3000
+        Select Case errNum - BASE
+        Case 1   ' INVALID_REGEXP_ESCAPE
+            DescribeRegexError = "Invalid escape sequence in the pattern (an unrecognized '\' escape)."
+        Case 2   ' INVALID_ESCAPE
+            DescribeRegexError = "Invalid escape sequence."
+        Case 3   ' INVALID_RANGE
+            DescribeRegexError = "Invalid character range in a '[...]' class (e.g. '[z-a]', where the start is greater than the end)."
+        Case 4   ' UNTERMINATED_CHARCLASS
+            DescribeRegexError = "Unterminated character class: a '[' without a matching ']'."
+        Case 6   ' INVALID_REGEXP_GROUP
+            DescribeRegexError = "Invalid group construct: a malformed '(?...)' group."
+        Case 7   ' INVALID_REGEXP_CHARACTER
+            DescribeRegexError = "Invalid character in the pattern."
+        Case 8   ' INVALID_QUANTIFIER
+            DescribeRegexError = "Invalid quantifier: a malformed '{n,m}' count (e.g. '{2,1}', or a number too large)."
+        Case 9   ' UNEXPECTED_END_OF_PATTERN
+            DescribeRegexError = "Unexpected end of pattern: an unclosed group — a '(' without a matching ')'."
+        Case 10  ' UNEXPECTED_REGEXP_TOKEN
+            DescribeRegexError = "Unexpected token in the pattern."
+        Case 11  ' UNEXPECTED_CLOSING_PAREN
+            DescribeRegexError = "Unmatched ')': a closing parenthesis with no matching '('."
+        Case 12  ' INVALID_QUANTIFIER_NO_ATOM
+            DescribeRegexError = "Quantifier with nothing to repeat (e.g. a leading '*', '+', or '?')."
+        Case 13  ' INVALID_IDENTIFIER
+            DescribeRegexError = "Invalid capture-group name. Names must start with a letter or underscore, then contain only letters, digits, or underscores (and must not start with a digit)."
+        Case 14  ' INVALID_MODIFIER
+            DescribeRegexError = "Invalid inline modifier: a malformed or repeated '(?i)'/'(?m)'/'(?s)' flag group."
+        Case 20  ' INTERNAL_LOGIC_ERR
+            DescribeRegexError = "Internal engine error (this should not happen — please report the pattern)."
+        Case 30  ' INVALID_FLAG_ERR
+            DescribeRegexError = "Invalid flag."
+        Case 31  ' INVALID_REPLACEMENT_STRING
+            DescribeRegexError = "Invalid replacement string (a malformed '$' reference)."
+        Case 50  ' INVALID_INPUT
+            DescribeRegexError = "Invalid input."
+        Case Else
+            ' not one of ours - pass through whatever the runtime gave us, or a generic line
+            DescribeRegexError = vbNullString
+        End Select
+    End Function
+
+    Private Function ErrText(ByVal errNum As Long, ByVal fallback As String) As String
+        Dim s As String
+        s = DescribeRegexError(errNum)
+        If LenB(s) = 0 Then
+            If LenB(fallback) > 0 Then ErrText = fallback Else ErrText = "Invalid regular expression pattern."
+        Else
+            ErrText = s
+        End If
+    End Function
 
 End Class
 
@@ -495,7 +555,7 @@ Private Module StaticRegex
     '
     ' ==========================================================================
     ' LOCAL PERFORMANCE PATCHES BY GCuser99:
-    ' All edits are banner-marked; grep "PATCH" to find every site.
+    ' All edits are banner-marked; search "PATCH" to find every site.
     ' None of these affect the RegExp/Match/SubMatches/MatchCollection wrapper,
     ' which is independent of them.
     '
