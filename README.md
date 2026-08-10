@@ -207,6 +207,8 @@ Not supported (as with `VBScript.RegExp`): `\p{...}` Unicode property classes, a
 supplementary/astral characters above U+FFFF are handled as surrogate pairs rather than
 single code points. `\w`, `\d`, and `\b` are ASCII, as in `VBScript.RegExp`.
 
+Named groups are supported, but must be composed of characters `a-z, A-Z, 0-9, _` and cannot begin with a number.
+
 Other constructs not currently supported: named backreferences (`\k<name>` — numbered
 backreferences like `\1` do work), atomic groups / possessive quantifiers, `\A`/`\Z` anchors,
 and conditionals.
