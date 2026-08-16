@@ -16,7 +16,7 @@ an excellent ECMAScript-compatible matcher; this project is the compatibility wr
 
 `VBScript.RegExp` has been the de-facto regex object in the VBA/VB6 world for two decades,
 but it arrives via the (now-deprecated) VBScript runtime. Microsoft has since built a native
-`RegExp` into the **VBA** library (Office version 2508, 2025) so VBA users no longer need the
+`RegExp` into the **VBA** library (Office version 2508 in year 2025) so VBA users no longer need the
 VBScript reference — but that is VBA, not twinBASIC.
 
 **twinBASIC has no built-in regular-expressions support today.** Its author, Wayne Phillips,
