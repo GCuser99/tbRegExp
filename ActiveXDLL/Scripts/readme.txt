@@ -10,7 +10,7 @@ Where should the tbRegExp DLL be installed on my User Account?
 
 This installer will install tbRegExp in any location that you select. It is recommended that it be installed in C:\Users\[user name]\AppData\Local, which is the default location, to prevent the DLL file from being inadvertently moved or deleted after it has been registered. Moving or deleting the DLL after installation without first properly uninstalling will break any code that references the DLL and render it unusable.
 
-The installer will place a tbRegExp shortcut on your Desktop to provide easy access to the installation folder, uninstaller file, readme instructions, and example resources.  
+The installer will place a tbRegExp shortcut on your Desktop to provide easy access to the installation folder, uninstaller file, and readme instructions.  
 
 What happens if I upgrade to a new version, or reinstall it to a new location?
 

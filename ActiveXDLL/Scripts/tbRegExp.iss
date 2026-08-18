@@ -27,12 +27,16 @@
 // An install log can be produced using the following from command line:
 // [installer name].exe /LOG="install_log.txt"
 //
-// Office application support is configured via the SUPPORT_* constants at the
-// top of the [Code] section. Set each flag to True for the Office apps the DLL
-// is intended to support. This affects the "supported app" message shown when
-// no compatible Office install is found, and which "Trusted Locations" registry
-// entries are written. Note that both DLL bitnesses are installed regardless
-// of which Office bitness (if any) is detected.
+// Office application support is configured via the flags in the #define block
+// at the top of this script (below). OFFICE_AWARE is the master switch: set it
+// to "False" for a non-Office DLL and all Office-specific behavior is disabled
+// -- the "supported app" detection prompt is skipped and no "Trusted Locations"
+// registry entries are written, regardless of the other flags. When
+// OFFICE_AWARE is "True", the SUPPORT_* flags select which Office apps the DLL
+// targets (affecting the detection message and which Trusted Location entries
+// are written), and REGISTER_TRUSTED_LOCS toggles those entries on or off.
+// Note that both DLL bitnesses are installed regardless of which Office bitness
+// (if any) is detected.
 //
 // ---------------------------------------------------------------------------
 // REUSING THIS SCRIPT AS A TEMPLATE
@@ -44,16 +48,17 @@
 //      "uninstall previous version" logic in PrepareToInstall. Two DLLs sharing
 //      an AppGUID would treat each other as a "previous version" and uninstall
 //      one another. Generate a fresh GUID for every component.
-//   2. Set the behavior flags in the [Code] const block:
-//        Office DLL w/ example docs : OFFICE_AWARE=True,  REGISTER_TRUSTED_LOCS=True
-//        Office DLL, no example docs: OFFICE_AWARE=True,  REGISTER_TRUSTED_LOCS=False
-//        General / non-Office DLL   : OFFICE_AWARE=False, REGISTER_TRUSTED_LOCS=False
+//   2. Set the behavior flags in the #define block at the top of the script:
+//        Office DLL w/ example docs : OFFICE_AWARE="True",  REGISTER_TRUSTED_LOCS="True"
+//        Office DLL, no example docs: OFFICE_AWARE="True",  REGISTER_TRUSTED_LOCS="False"
+//        General / non-Office DLL   : OFFICE_AWARE="False"  (SUPPORT_* and
+//                                     REGISTER_TRUSTED_LOCS are then ignored)
 //   3. The [Files] section expects both a _win32 and a _win64 build. For a
 //      genuinely single-bitness component, comment out the Source line for the
 //      bitness you don't ship; everything else still works.
 // The Office-specific helpers and the [Registry] trusted-location entries can be
-// left in place even for a general DLL — with REGISTER_TRUSTED_LOCS=False and the
-// Has* runtime checks, nothing is written, so they are inert.
+// left in place even for a general DLL -- with OFFICE_AWARE="False" nothing
+// Office-related runs and nothing is written, so they are inert.
 // ---------------------------------------------------------------------------
  
 #define AppName "tbRegExp"
@@ -261,9 +266,11 @@ const
   // These values are configured via the #define block at the TOP of the script
   // (SUPPORT_EXCEL, SUPPORT_ACCESS, ...). The lines below just inherit those
   // compile-time defines; edit the flags up top, not here.
-  // Affects the user-facing "supported apps" message in InitializeSetup and
-  // which Trusted Location registry entries are written. It does not control
-  // which DLL bitness is installed — both bitnesses are always installed.
+  // Only relevant when OFFICE_AWARE is "True". They select which Office apps
+  // the DLL targets, affecting the user-facing "supported apps" message in
+  // InitializeSetup and which Trusted Location registry entries are written.
+  // They do not control which DLL bitness is installed -- both bitnesses are
+  // always installed.
   SUPPORT_EXCEL   = {#SUPPORT_EXCEL};
   SUPPORT_ACCESS  = {#SUPPORT_ACCESS};
   SUPPORT_WORD    = {#SUPPORT_WORD};
@@ -272,19 +279,22 @@ const
 
   // ---- Office-aware behavior ----
   // Configured via the #define block at the TOP of the script (OFFICE_AWARE).
-  // Master switch for Office-specific behavior. Set "False" for DLLs that have
-  // nothing to do with Office: this skips the Office-detection prompt in
-  // InitializeSetup so a machine without Office isn't asked to confirm. The
-  // install/registration of both DLL bitnesses is unaffected either way.
+  // Master switch for Office-specific behavior. When "False" (for DLLs that
+  // have nothing to do with Office): the Office-detection prompt in
+  // InitializeSetup is skipped, AND no trusted-location entries are written --
+  // ShouldRegisterTrustedLocs gates on this flag, so SUPPORT_* and
+  // REGISTER_TRUSTED_LOCS are effectively ignored. The install/registration of
+  // both DLL bitnesses is unaffected either way.
   OFFICE_AWARE = {#OFFICE_AWARE};
 
   // ---- Trusted Locations registration ----
   // Configured via the #define block at the TOP of the script
-  // (REGISTER_TRUSTED_LOCS). When "True", the installer adds {app}\examples as a
-  // trusted location for each supported and installed Office app. Set to "False"
-  // for DLLs that don't ship example documents or don't need their install
-  // folder trusted. (The Has* runtime checks also gate these, so nothing is
-  // written for an app that isn't installed even when this is True.)
+  // (REGISTER_TRUSTED_LOCS). Only takes effect when OFFICE_AWARE is "True".
+  // When both are "True", the installer adds {app}\examples as a trusted
+  // location for each supported and installed Office app. Set to "False" for
+  // DLLs that don't ship example documents or don't need their install folder
+  // trusted. (The Has* runtime checks also gate these, so nothing is written
+  // for an app that isn't installed even when this is "True".)
   REGISTER_TRUSTED_LOCS = {#REGISTER_TRUSTED_LOCS};
 
   // ---- Other constants ----
