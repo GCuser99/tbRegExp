@@ -50,7 +50,7 @@ The library comes in three forms — pick whichever fits how you work:
 |-|-|-|
 |**twinBASIC package**|You want a referenced `.twinpack`, no copied code|Automatic via the Package Server|
 |**Single-file drop-in**|You want one `.twin` in your project, no reference|Manual|
-|**ActiveX DLL**|You're calling from VBA, twinBASIC or another COM host|Re-install the DLL (Inno script included)|
+|**ActiveX DLL**|You're calling from VBA, twinBASIC or another COM host|Re-install the DLL (Inno and utility scripts included)|
 
 The package can be referenced through twinBASIC's Package Server. In the IDE, click **References -> Available Packages**. Scroll to find the entry and click the checkbox on the left of the entry. Then click **Apply Changes** button in lower-right.
 
