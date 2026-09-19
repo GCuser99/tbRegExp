@@ -57,6 +57,13 @@ Private Module StaticRegex
     ' PATCH 05 - make BytecodeDescriptionConstant Enum Public for RegExp use
     '
     ' PATCH 06 - widen IsIdentifierChar from excepting only a-z, A-Z to also 0-9, _
+    '
+    ' PATCH 07 - literal-rbracket-rcurly: ES2015+ / web-reality behavior.
+    '   ES5 §15.10.1 forbade ']' and '}' as PatternCharacters, but ES2015 Annex B
+    '   (ExtendedPatternCharacter) permits them in non-u mode, and every mainstream
+    '   engine — including VBScript.RegExp, which this library replaces — accepts a
+    '   bare ']' or '}' outside a class/quantifier as a literal. Falling through to
+    '   Case Else (RETOK_ATOM_CHAR) matches that behavior.
     ' ==========================================================================
     Option Private Module
     Option Explicit
@@ -2481,10 +2488,12 @@ Private Module StaticRegex
             Else
                 outToken.t = RETOK_ATOM_START_CHARCLASS
             End If
-        Case UNICODE_RCURLY, UNICODE_RBRACKET
+        '>>> PATCH 07 literal-rbracket-rcurly
+        'Case UNICODE_RCURLY, UNICODE_RBRACKET
             ' Although these could be parsed as PatternCharacters unambiguously (here),
             ' * E5 Section 15.10.1 grammar explicitly forbids these as PatternCharacters.
-            Err.Raise REGEX_ERR_INVALID_REGEXP_CHARACTER
+        '    Err.Raise REGEX_ERR_INVALID_REGEXP_CHARACTER
+        '<<< PATCH 07
         Case LEXER_ENDOFINPUT
             ' EOF
             outToken.t = RETOK_EOF

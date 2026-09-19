@@ -205,7 +205,36 @@ Private Module GitHubTests
         re.Flags = "s"                               ' DotAll only (clears Global/IgnoreCase)
         re.Pattern = "a.b"
         Debug.Assert re.Test("a" & vbLf & "b") = True
-
+        
+        '------------------- bare ] and } outside class/quantifier are literals --
+        Set re = New RegExp
+        re.Pattern = "\[Text\(.*?\)]"
+        Debug.Assert re.Test("x [Text(A, B)] y") = True
+        re.Pattern = "a}b"
+        Debug.Assert re.Test("a}b") = True
+        ' escaped forms still work (unchanged)
+        re.Pattern = "a\]b"
+        Debug.Assert re.Test("a]b") = True
+        ' character classes still parse correctly (] inside is the terminator)
+        re.Pattern = "[abc]+"
+        Debug.Assert re.Test("cab") = True
+        ' quantifiers still parse correctly
+        re.Pattern = "a{2,3}"
+        Debug.Assert re.Test("aaa") = True
+        Debug.Assert re.Test("a") = False
+        ' unterminated class is still an error
+        re.Pattern = "[abc"
+        Debug.Assert re.IsValid = False
+        
+        ' unescaped ],} treated as literal
+        Dim t As String
+        t = "[Text(A,B)]"
+        re.Pattern = "\[Text\(.*?\)]": reCom.Pattern = re.Pattern
+        Debug.Assert re.Test(t) = reCom.Test(t)
+        t = "{Text(A,B)}"
+        re.Pattern = "\{Text\(.*?\)}": reCom.Pattern = re.Pattern
+        Debug.Assert re.Test(t) = reCom.Test(t)
+        
         '------------------------------ Edge cases ---------------------------
         Set re = New RegExp: Set reCom = CreateObject("VBScript.RegExp")
         ' no match: Count = 0, Test = False (matches COM)

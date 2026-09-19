@@ -253,16 +253,16 @@ Public Class RegExp
         mLastErrNumber = 0
         mLastError = vbNullString
 
-        On Error Resume Next
+        On Error GoTo CompileFailed
         StaticRegex.InitializeRegex regex, mPattern, mIgnoreCase
-        mLastErrNumber = Err.Number
-        If mLastErrNumber = 0 Then
-            mLastError = vbNullString
-        Else
-            mLastError = ErrText(mLastErrNumber, Err.Description)
-        End If
         On Error GoTo 0
-        mIsValid = (mLastErrNumber = 0)
+        mIsValid = True
+        Exit Sub
+
+CompileFailed:
+        mLastErrNumber = Err.Number
+        mLastError = ErrText(mLastErrNumber, Err.Description)
+        mIsValid = False
     End Sub
     
     Private Sub GetNamedCapturesInfo(ByRef colNames As Collection, ByRef colEntryPoints As Collection)

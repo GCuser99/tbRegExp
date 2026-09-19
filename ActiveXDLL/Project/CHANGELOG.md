@@ -1,5 +1,9 @@
 # Change Log
 
+[v1.3.0.0, 19 Sept 2026]
+
+ - Fixed VBScript compatibility: unescaped ] and } are now accepted as literals (e.g. "\[.*]")
+ 
 [v1.2.0.0, 10 Aug 2026]
 
  - Improved error handling

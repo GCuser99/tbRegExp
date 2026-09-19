@@ -1,7 +1,7 @@
 {
         "configuration.inherits": "Defaults",
         "project.appTitle": "tbRegExp",
-        "project.buildPath": "${SourcePath}\\\\Build\\\\${ProjectName}_${Architecture}.${FileExtension}",
+        "project.buildPath": "${SourcePath}\\Build\\${ProjectName}_${Architecture}.${FileExtension}",
         "project.buildType": "ActiveX DLL",
         "project.description": "tbRegExp",
         "project.exportPathIsV2": true,
@@ -40,7 +40,7 @@
         "project.settingsVersion": 1,
         "project.startupObject": "(none)",
         "project.useProjectIdForTypeLibraryId": true,
-        "project.versionMinor": 2,
+        "project.versionMinor": 3,
         "project.versionRevision": 0,
         "project.warnings": {
                 "errors": [],
