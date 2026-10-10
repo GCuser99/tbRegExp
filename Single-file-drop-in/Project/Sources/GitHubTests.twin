@@ -1,6 +1,6 @@
 Private Module GitHubTests
     ' ============================================================================
-    '  testSurface  -  copy/paste self-test for the tbRegExp wrapper.
+    '  TestSurface  -  copy/paste self-test for the tbRegExp wrapper.
     '
     '  No dependencies. Add this Sub to any module in a project that references
     '  tbRegExp, then run it. It uses native Debug.Assert, so:
@@ -13,33 +13,44 @@ Private Module GitHubTests
     '  (DotAll, Split, named groups, lookbehind, inline modifiers, $<name>),
     '  results are asserted against known literal values.
     ' ============================================================================
-    Sub testSurface()
-        Dim re As RegExp
+    Sub TestSurface()
+        Dim re As tbRegExp.RegExp
         Dim reCom As Object
-        Dim mc As MatchCollection, m As Match
+        Dim mc As tbRegExp.MatchCollection, m As tbRegExp.Match
         Dim mCom As Object, mcCom As Object
         Dim testStr As String
         Dim parts As Collection
         Dim n As Long
 
-        Set re = New RegExp
+        Set re = New tbRegExp.RegExp
         Set reCom = CreateObject("VBScript.RegExp")
 
         '------------------------------ Unicode ------------------------------
-        re.Pattern = "文(言)文与"
+        ' Note: The tB IDE is fully Unicode capable and so building the pattern and test strings
+        ' using ChrW is not needed for tB. However, ChrW is needed for testing the ActiveX Dll
+        ' version of tBRegExp in the VBA IDE, hence we build the strings as follows...
+        ' 文 = U+6587, 言 = U+8A00, 与 = U+4E0E  (built via ChrW$ so the source stays ASCII)
+        re.Pattern = ChrW$(&H6587&) & "(" & ChrW$(&H8A00&) & ")" & ChrW$(&H6587&) & ChrW$(&H4E0E&)
         reCom.Pattern = re.Pattern
-        testStr = "1234文言文与5678"
+        testStr = "1234" & ChrW$(&H6587&) & ChrW$(&H8A00&) & ChrW$(&H6587&) & ChrW$(&H4E0E&) & "5678"
         Debug.Assert re.Test(testStr) = reCom.Test(testStr)
         Debug.Assert re.Execute(testStr)(0).Value = reCom.Execute(testStr)(0).Value
         Debug.Assert re.Execute(testStr)(0).SubMatches(0) = reCom.Execute(testStr)(0).SubMatches(0)
         Debug.Assert re.Replace(testStr, "0000000") = reCom.Replace(testStr, "0000000")
         ' No COM counterpart for Split
         Debug.Assert re.Split(testStr)(1) = "1234"
-        Debug.Assert re.Split(testStr)(2) = "言"
+        Debug.Assert re.Split(testStr)(2) = ChrW$(&H8A00&)          ' 言
         Debug.Assert re.Split(testStr)(3) = "5678"
-        re.Pattern = "文言文与"
+        re.Pattern = ChrW$(&H6587&) & ChrW$(&H8A00&) & ChrW$(&H6587&) & ChrW$(&H4E0E&)
         Debug.Assert re.Split(testStr)(1) = "1234"
         Debug.Assert re.Split(testStr)(2) = "5678"
+
+        ' case-insensitive folding of non-ASCII BMP (matches COM)
+        ' é = U+00E9, É = U+00C9
+        re.Pattern = "caf" & ChrW$(&HE9&): re.IgnoreCase = True
+        reCom.Pattern = re.Pattern: reCom.IgnoreCase = True
+        Debug.Assert re.Test("CAF" & ChrW$(&HC9&)) = reCom.Test("CAF" & ChrW$(&HC9&))
+        re.IgnoreCase = False: reCom.IgnoreCase = False
 
         ' case-insensitive folding of non-ASCII BMP (matches COM)
         re.Pattern = "café": re.IgnoreCase = True
@@ -99,7 +110,7 @@ Private Module GitHubTests
             n = n + 1
         Next m
         Debug.Assert n = 3
-
+        
         '--------------------------- IgnoreCase ------------------------------
         re.Pattern = "hello": reCom.Pattern = re.Pattern
         re.IgnoreCase = True: reCom.IgnoreCase = True
@@ -118,7 +129,6 @@ Private Module GitHubTests
         re.MultiLine = False: reCom.MultiLine = False
 
         '------------------- Anchors / classes / alternation -----------------
-        Set re = New RegExp: Set reCom = CreateObject("VBScript.RegExp")
         re.Global = True: reCom.Global = True
         re.Pattern = "\bcat\b": reCom.Pattern = re.Pattern
         Debug.Assert re.Execute("cat cats scatter cat").Count = reCom.Execute("cat cats scatter cat").Count  ' 2
@@ -157,7 +167,20 @@ Private Module GitHubTests
         Debug.Assert re.Execute("price $50 not 60")(0).Value = "50"
         re.Pattern = "(?<!\$)\b\d+"
         Debug.Assert re.Execute("$50 and 60")(0).Value = "60"
+        
+        ' zero-width ^ inside a lookbehind must not fire at boundary 1
+        re.Global = True
+        re.Pattern = "(?<!^)."
+        Debug.Assert re.Execute("abc").Count = 2
+        Debug.Assert re.Execute("abc")(0).Value = "b"
+        Debug.Assert re.Execute("abc")(1).Value = "c"
 
+        ' \b inside a lookbehind must be correct at boundaries 0 and 1
+        re.Pattern = "(?<=\b)\w"
+        Debug.Assert re.Execute("ab cd").Count = 2
+        Debug.Assert re.Execute("ab cd")(0).Value = "a"
+        Debug.Assert re.Execute("ab cd")(1).Value = "c"
+        
         '------------------------ DotAll (beyond COM) ------------------------
         testStr = "start" & vbCrLf & "end"
         re.Pattern = "start.*end"
@@ -167,7 +190,6 @@ Private Module GitHubTests
         Debug.Assert re.Test(testStr) = False        ' default: '.' stops at newline
 
         '------------------ Inline modifiers (beyond COM) --------------------
-        Set re = New RegExp
         re.Pattern = "(?i)hello"
         Debug.Assert re.Test("HELLO there") = True
         re.Pattern = "(?i:abc)DEF"
@@ -198,7 +220,6 @@ Private Module GitHubTests
         Debug.Assert parts(5) = "c"
 
         '------------------- Flags convenience property (beyond COM) ------------
-        Set re = New RegExp
         re.Flags = "gi"                              ' Global + IgnoreCase
         re.Pattern = "cat"
         Debug.Assert re.Execute("Cat cat CAT").Count = 3
@@ -207,7 +228,6 @@ Private Module GitHubTests
         Debug.Assert re.Test("a" & vbLf & "b") = True
         
         '------------------- bare ] and } outside class/quantifier are literals --
-        Set re = New RegExp
         re.Pattern = "\[Text\(.*?\)]"
         Debug.Assert re.Test("x [Text(A, B)] y") = True
         re.Pattern = "a}b"
@@ -236,7 +256,6 @@ Private Module GitHubTests
         Debug.Assert re.Test(t) = reCom.Test(t)
         
         '------------------------------ Edge cases ---------------------------
-        Set re = New RegExp: Set reCom = CreateObject("VBScript.RegExp")
         ' no match: Count = 0, Test = False (matches COM)
         re.Pattern = "xyz": reCom.Pattern = re.Pattern
         Debug.Assert re.Execute("abc").Count = reCom.Execute("abc").Count   ' 0

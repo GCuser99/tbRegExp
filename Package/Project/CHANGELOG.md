@@ -1,5 +1,11 @@
 # Change Log
 
+[v1.4.0.0, 10 Oct 2026]
+
+ - Bug fix - ^ inside a lookbehind succeeds one position too late [Viorel]
+ - Bug fix - \b inside a lookbehind is wrong at the first two boundaries
+ - Replaced As-New auto-instancing declares with explicit form
+
 [v1.3.0.0, 19 Sept 2026]
 
  - Fixed VBScript compatibility: unescaped ] and } are now accepted as literals (e.g. "\[.*]")

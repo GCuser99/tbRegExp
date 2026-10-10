@@ -144,8 +144,8 @@ Public Class RegExp
 
         StaticRegex.InitializeMatcherState matcherState, Not mGlobal, mMultiLine, mDotAll
     
-        Dim colNames As New Collection
-        Dim colEntryPoints As New Collection
+        Dim colNames As Collection: Set colNames = New Collection
+        Dim colEntryPoints As Collection: Set colEntryPoints = New Collection
         
         GetNamedCapturesInfo colNames, colEntryPoints
         
@@ -436,7 +436,7 @@ Public Class MatchCollection
         End If
     End Property
 
-    [Hidden(True)]
+    [Hidden]
     [Enumerator]
     Public Function NewEnum() As IUnknown
         Set NewEnum = colMatches.[_NewEnum]
@@ -502,7 +502,7 @@ Public Class SubMatches
         End If
     End Property
 
-    [Hidden(True)]
+    [Hidden]
     [Enumerator]
     Public Function NewEnum() As IUnknown
         ' Build the enumeration Collection on demand (SubMatches are tiny); index/key
