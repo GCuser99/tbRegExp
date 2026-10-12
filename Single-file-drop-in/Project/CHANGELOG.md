@@ -1,8 +1,20 @@
 # Change Log
 
+[v1.5.0.0, 12 Oct 2026]
+
+ - Fixed VBScript compatibility for '.' wrt to vbCr line terminator which should be accepted [@Viorel, GitHub]
+ - Fixed VBScript compatibility for "$" substitution in Replace [@KubaO, tbDocs]
+    - "$" that starts no substitution item is now copied as text, as VBScript does (was: error 3031)
+    - "$n" now reads at most two digits with fallback, so "$100" with 2 groups is group 1 then "00" (was: empty string)
+    - "$0", and "$<" with no closing ">", no longer raise raw errors
+ - Performance: removed every Collection from the result path
+    - MatchCollection and SubMatches are array-backed; For Each on both is served by a real IEnumVARIANT
+    - named-capture metadata is cached per compiled Pattern instead of rebuilt on every Execute call
+    - Compiled Execute 4–7× cheaper per call; For Each over SubMatches ~24×; per-match and Test/Replace/Split unchanged
+
 [v1.4.0.0, 10 Oct 2026]
 
- - Bug fix - ^ inside a lookbehind succeeds one position too late [Viorel]
+ - Bug fix - ^ inside a lookbehind succeeds one position too late [@Viorel, GitHub]
  - Bug fix - \b inside a lookbehind is wrong at the first two boundaries
  - Replaced As-New auto-instancing declares with explicit form
 

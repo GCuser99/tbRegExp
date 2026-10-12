@@ -1,293 +1,424 @@
 Private Module GitHubTests
-    ' ============================================================================
-    '  TestSurface  -  copy/paste self-test for the tbRegExp wrapper.
-    '
-    '  No dependencies. Add this Sub to any module in a project that references
-    '  tbRegExp, then run it. It uses native Debug.Assert, so:
-    '     - nothing happens  => every check passed.
-    '     - it breaks on a line => that check failed; the line shows what.
-    '  Watch the Immediate window for the final "testSurface: all checks passed".
-    '
-    '  Strategy: where VBScript.RegExp can do the same thing, results are asserted
-    '  to be IDENTICAL to the live COM engine. Where the feature is beyond COM
-    '  (DotAll, Split, named groups, lookbehind, inline modifiers, $<name>),
-    '  results are asserted against known literal values.
-    ' ============================================================================
-    Sub TestSurface()
-        Dim re As tbRegExp.RegExp
-        Dim reCom As Object
-        Dim mc As tbRegExp.MatchCollection, m As tbRegExp.Match
-        Dim mCom As Object, mcCom As Object
-        Dim testStr As String
-        Dim parts As Collection
-        Dim n As Long
+' ============================================================================
+'  TestSurface  -  copy/paste self-test for the tbRegExp wrapper.
+'
+'  No dependencies. Add this Sub to any module in a project that references
+'  tbRegExp, then run it. It uses native Debug.Assert, so:
+'     - nothing happens  => every check passed.
+'     - it breaks on a line => that check failed; the line shows what.
+'  Watch the Immediate window for the final "testSurface: all checks passed".
+'
+'  Strategy: where VBScript.RegExp can do the same thing, results are asserted
+'  to be IDENTICAL to the live COM engine. Where the feature is beyond COM
+'  (DotAll, Split, named groups, lookbehind, inline modifiers, $<name>),
+'  results are asserted against known literal values.
+' ============================================================================
+Sub TestSurface()
+    Dim re As tbRegExp.RegExp
+    Dim reCom As Object
+    Dim mc As tbRegExp.MatchCollection, m As tbRegExp.Match
+    Dim mCom As Object, mcCom As Object
+    Dim testStr As String
+    Dim parts As Collection
+    Dim n As Long
 
-        Set re = New tbRegExp.RegExp
-        Set reCom = CreateObject("VBScript.RegExp")
+    Set re = New tbRegExp.RegExp
+    Set reCom = CreateObject("VBScript.RegExp")
 
-        '------------------------------ Unicode ------------------------------
-        ' Note: The tB IDE is fully Unicode capable and so building the pattern and test strings
-        ' using ChrW is not needed for tB. However, ChrW is needed for testing the ActiveX Dll
-        ' version of tBRegExp in the VBA IDE, hence we build the strings as follows...
-        ' 文 = U+6587, 言 = U+8A00, 与 = U+4E0E  (built via ChrW$ so the source stays ASCII)
-        re.Pattern = ChrW$(&H6587&) & "(" & ChrW$(&H8A00&) & ")" & ChrW$(&H6587&) & ChrW$(&H4E0E&)
-        reCom.Pattern = re.Pattern
-        testStr = "1234" & ChrW$(&H6587&) & ChrW$(&H8A00&) & ChrW$(&H6587&) & ChrW$(&H4E0E&) & "5678"
-        Debug.Assert re.Test(testStr) = reCom.Test(testStr)
-        Debug.Assert re.Execute(testStr)(0).Value = reCom.Execute(testStr)(0).Value
-        Debug.Assert re.Execute(testStr)(0).SubMatches(0) = reCom.Execute(testStr)(0).SubMatches(0)
-        Debug.Assert re.Replace(testStr, "0000000") = reCom.Replace(testStr, "0000000")
-        ' No COM counterpart for Split
-        Debug.Assert re.Split(testStr)(1) = "1234"
-        Debug.Assert re.Split(testStr)(2) = ChrW$(&H8A00&)          ' 言
-        Debug.Assert re.Split(testStr)(3) = "5678"
-        re.Pattern = ChrW$(&H6587&) & ChrW$(&H8A00&) & ChrW$(&H6587&) & ChrW$(&H4E0E&)
-        Debug.Assert re.Split(testStr)(1) = "1234"
-        Debug.Assert re.Split(testStr)(2) = "5678"
+    '------------------------------ Unicode ------------------------------
+    ' Note: The tB IDE is fully Unicode capable and so building the pattern and test strings
+    ' using ChrW is not needed for tB. However, ChrW is needed for testing the ActiveX Dll
+    ' version of tBRegExp in the VBA IDE, hence we build the strings as follows...
+    ' 文 = U+6587, 言 = U+8A00, 与 = U+4E0E  (built via ChrW$ so the source stays ASCII)
+    re.Pattern = ChrW$(&H6587&) & "(" & ChrW$(&H8A00&) & ")" & ChrW$(&H6587&) & ChrW$(&H4E0E&)
+    reCom.Pattern = re.Pattern
+    testStr = "1234" & ChrW$(&H6587&) & ChrW$(&H8A00&) & ChrW$(&H6587&) & ChrW$(&H4E0E&) & "5678"
+    Debug.Assert re.Test(testStr) = reCom.Test(testStr)
+    Debug.Assert re.Execute(testStr)(0).Value = reCom.Execute(testStr)(0).Value
+    Debug.Assert re.Execute(testStr)(0).SubMatches(0) = reCom.Execute(testStr)(0).SubMatches(0)
+    Debug.Assert re.Replace(testStr, "0000000") = reCom.Replace(testStr, "0000000")
+    ' No COM counterpart for Split
+    Debug.Assert re.Split(testStr)(1) = "1234"
+    Debug.Assert re.Split(testStr)(2) = ChrW$(&H8A00&)          ' 言
+    Debug.Assert re.Split(testStr)(3) = "5678"
+    re.Pattern = ChrW$(&H6587&) & ChrW$(&H8A00&) & ChrW$(&H6587&) & ChrW$(&H4E0E&)
+    Debug.Assert re.Split(testStr)(1) = "1234"
+    Debug.Assert re.Split(testStr)(2) = "5678"
 
-        ' case-insensitive folding of non-ASCII BMP (matches COM)
-        ' é = U+00E9, É = U+00C9
-        re.Pattern = "caf" & ChrW$(&HE9&): re.IgnoreCase = True
-        reCom.Pattern = re.Pattern: reCom.IgnoreCase = True
-        Debug.Assert re.Test("CAF" & ChrW$(&HC9&)) = reCom.Test("CAF" & ChrW$(&HC9&))
-        re.IgnoreCase = False: reCom.IgnoreCase = False
+    ' case-insensitive folding of non-ASCII BMP (matches COM)
+    ' é = U+00E9, É = U+00C9
+    re.Pattern = "caf" & ChrW$(&HE9&): re.IgnoreCase = True
+    reCom.Pattern = re.Pattern: reCom.IgnoreCase = True
+    Debug.Assert re.Test("CAF" & ChrW$(&HC9&)) = reCom.Test("CAF" & ChrW$(&HC9&))
+    re.IgnoreCase = False: reCom.IgnoreCase = False
 
-        ' case-insensitive folding of non-ASCII BMP (matches COM)
-        re.Pattern = "café": re.IgnoreCase = True
-        reCom.Pattern = "café": reCom.IgnoreCase = True
-        Debug.Assert re.Test("CAFÉ") = reCom.Test("CAFÉ")
-        re.IgnoreCase = False: reCom.IgnoreCase = False
+    '------------------------------ Groups ------------------------------
+    re.Pattern = "(\d{4})-(\d{2})"
+    reCom.Pattern = re.Pattern
+    Debug.Assert re.Execute("2026-07")(0).SubMatches(0) = reCom.Execute("2026-07")(0).SubMatches(0)
+    Debug.Assert re.Execute("2026-07")(0).SubMatches(1) = reCom.Execute("2026-07")(0).SubMatches(1)
+    ' No COM counterpart for named groups
+    re.Pattern = "(?<year>\d{4})-(?<month>\d{2})"
+    Debug.Assert re.Execute("2026-07")(0).SubMatches(0) = "2026"
+    Debug.Assert re.Execute("2026-07")(0).SubMatches(1) = "07"
+    Debug.Assert re.Execute("2026-07")(0).SubMatches("year") = "2026"
+    Debug.Assert re.Execute("2026-07")(0).SubMatches("month") = "07"
+    ' non-participating optional group -> empty submatch (matches COM)
+    re.Pattern = "a(b)?c": reCom.Pattern = re.Pattern
+    Debug.Assert re.Execute("ac")(0).SubMatches(0) = reCom.Execute("ac")(0).SubMatches(0)
+    
+    ' duplicate group names: the last participating slot wins (beyond COM)
+    re.Global = True
+    re.Pattern = "(?<a>x)(?<a>y)"
+    Debug.Assert re.Execute("xy")(0).SubMatches.Count = 2
+    Debug.Assert re.Execute("xy")(0).SubMatches("a") = "y"
 
-        '------------------------------ Groups ------------------------------
-        re.Pattern = "(\d{4})-(\d{2})"
-        reCom.Pattern = re.Pattern
-        Debug.Assert re.Execute("2026-07")(0).SubMatches(0) = reCom.Execute("2026-07")(0).SubMatches(0)
-        Debug.Assert re.Execute("2026-07")(0).SubMatches(1) = reCom.Execute("2026-07")(0).SubMatches(1)
-        ' No COM counterpart for named groups
-        re.Pattern = "(?<year>\d{4})-(?<month>\d{2})"
-        Debug.Assert re.Execute("2026-07")(0).SubMatches(0) = "2026"
-        Debug.Assert re.Execute("2026-07")(0).SubMatches(1) = "07"
-        Debug.Assert re.Execute("2026-07")(0).SubMatches("year") = "2026"
-        Debug.Assert re.Execute("2026-07")(0).SubMatches("month") = "07"
-        ' non-participating optional group -> empty submatch (matches COM)
-        re.Pattern = "a(b)?c": reCom.Pattern = re.Pattern
-        Debug.Assert re.Execute("ac")(0).SubMatches(0) = reCom.Execute("ac")(0).SubMatches(0)
+    ' a name that resolves to a DIFFERENT slot on each match must not leak
+    ' across matches (regression guard for the reused subKeys buffer)
+    re.Pattern = "(?:(?<n>a)|(?<n>b))"
+    Set mc = re.Execute("ab")
+    Debug.Assert mc.Count = 2
+    Debug.Assert mc(0).SubMatches("n") = "a"
+    Debug.Assert mc(1).SubMatches("n") = "b"      ' "" here => the clear is missing
+    re.Global = False
+    
+    '----------------- For Each over SubMatches (beyond COM) -------------
+    ' SubMatches is enumerated by a hand-written IEnumVARIANT, not by a
+    ' Collection. The classic failure mode is an enumerator that drops its
+    ' LAST item - which still produces plausible-looking output - so these
+    ' check the COUNT as well as the values.
+    Dim sv As Variant
+    Dim acc As String
 
-        '--------------------------- Match members ---------------------------
-        re.Pattern = "\d+": reCom.Pattern = re.Pattern
-        Set m = re.Execute("abc123def")(0)
-        Set mCom = reCom.Execute("abc123def")(0)
-        Debug.Assert m.Value = mCom.Value                  ' "123"
-        Debug.Assert m.FirstIndex = mCom.FirstIndex        ' 3 (zero-based)
-        Debug.Assert m.Length = mCom.Length                ' 3
-        Debug.Assert m.Value = "123"
-        Debug.Assert m.FirstIndex = 3
-        Debug.Assert m.Length = 3
+    re.Global = False
+    re.Pattern = "(?<y>\d{4})-(?<m>\d{2})"
+    n = 0: acc = vbNullString
+    For Each sv In re.Execute("2026-07")(0).SubMatches
+        n = n + 1
+        acc = acc & "[" & sv & "]"
+    Next sv
+    Debug.Assert n = 2                      ' <- catches a dropped last item
+    Debug.Assert acc = "[2026][07]"
 
-        '--------------------------- Test / Global ---------------------------
-        re.Pattern = "\d+": reCom.Pattern = re.Pattern
-        re.Global = True: reCom.Global = True
-        Debug.Assert re.Test("a1b2c3") = reCom.Test("a1b2c3")           ' True
-        Debug.Assert re.Test("abcdef") = reCom.Test("abcdef")          ' False
-        ' Global affects match count
-        Debug.Assert re.Execute("a1b2c3").Count = reCom.Execute("a1b2c3").Count   ' 3
-        re.Global = False: reCom.Global = False
-        Debug.Assert re.Execute("a1b2c3").Count = reCom.Execute("a1b2c3").Count   ' 1
+    ' enumeration must agree with index access, element for element
+    Set m = re.Execute("2026-07")(0)
+    n = 0
+    For Each sv In m.SubMatches
+        Debug.Assert sv = m.SubMatches(n)
+        n = n + 1
+    Next sv
+    Debug.Assert n = m.SubMatches.Count
 
-        '--------------------------- MatchCollection -------------------------
-        re.Pattern = "\w+": reCom.Pattern = re.Pattern
-        re.Global = True: reCom.Global = True
-        Set mc = re.Execute("one two three")
-        Set mcCom = reCom.Execute("one two three")
-        Debug.Assert mc.Count = mcCom.Count                ' 3
-        ' Item() by index (zero-based)
-        Debug.Assert mc(0).Value = "one"
-        Debug.Assert mc(1).Value = "two"
-        Debug.Assert mc(2).Value = "three"
-        ' For Each enumeration
-        n = 0
-        For Each m In mc
-            n = n + 1
-        Next m
-        Debug.Assert n = 3
-        
-        '--------------------------- IgnoreCase ------------------------------
-        re.Pattern = "hello": reCom.Pattern = re.Pattern
-        re.IgnoreCase = True: reCom.IgnoreCase = True
-        Debug.Assert re.Test("HELLO") = reCom.Test("HELLO")            ' True
-        re.IgnoreCase = False: reCom.IgnoreCase = False
-        Debug.Assert re.Test("HELLO") = reCom.Test("HELLO")           ' False
+    ' every For Each gets its own enumerator: looping twice must yield
+    ' 2 x Count, not nothing the second time round
+    n = 0
+    For Each sv In m.SubMatches
+        n = n + 1
+    Next sv
+    For Each sv In m.SubMatches
+        n = n + 1
+    Next sv
+    Debug.Assert n = 4
 
-        '--------------------------- MultiLine -------------------------------
-        testStr = "one" & vbCrLf & "two"
-        re.Pattern = "^two": reCom.Pattern = re.Pattern
-        re.Global = True: reCom.Global = True
-        re.MultiLine = False: reCom.MultiLine = False
-        Debug.Assert re.Test(testStr) = reCom.Test(testStr)           ' False
-        re.MultiLine = True: reCom.MultiLine = True
-        Debug.Assert re.Test(testStr) = reCom.Test(testStr)          ' True
-        re.MultiLine = False: reCom.MultiLine = False
+    ' group-less matches share one empty SubMatches: it must enumerate zero
+    ' times rather than raising
+    re.Pattern = "\d+"
+    n = 0
+    For Each sv In re.Execute("abc123")(0).SubMatches
+        n = n + 1
+    Next sv
+    Debug.Assert n = 0
 
-        '------------------- Anchors / classes / alternation -----------------
-        re.Global = True: reCom.Global = True
-        re.Pattern = "\bcat\b": reCom.Pattern = re.Pattern
-        Debug.Assert re.Execute("cat cats scatter cat").Count = reCom.Execute("cat cats scatter cat").Count  ' 2
-        re.Pattern = "^\d+$": reCom.Pattern = re.Pattern
-        Debug.Assert re.Test("12345") = reCom.Test("12345")           ' True
-        Debug.Assert re.Test("12a45") = reCom.Test("12a45")          ' False
-        re.Pattern = "cat|dog|bird": reCom.Pattern = re.Pattern
-        Debug.Assert re.Execute("a cat and a dog").Count = reCom.Execute("a cat and a dog").Count  ' 2
-        re.Pattern = "colou?r": reCom.Pattern = re.Pattern
-        Debug.Assert re.Test("color") = reCom.Test("color")           ' True
-        Debug.Assert re.Test("colour") = reCom.Test("colour")        ' True
+    ' a non-participating optional group still yields an (empty) element
+    re.Pattern = "a(b)?(c)"
+    n = 0: acc = vbNullString
+    For Each sv In re.Execute("ac")(0).SubMatches
+        n = n + 1
+        acc = acc & "[" & sv & "]"
+    Next sv
+    Debug.Assert n = 2
+    Debug.Assert acc = "[][c]"
 
-        '------------------------------ Replace ------------------------------
-        re.Pattern = "\s+": reCom.Pattern = re.Pattern
-        Debug.Assert re.Replace("a  b   c", " ") = reCom.Replace("a  b   c", " ")   ' "a b c"
-        ' numbered backreferences $1 $2 (matches COM)
-        re.Pattern = "(\w+)@(\w+)": reCom.Pattern = re.Pattern
-        Debug.Assert re.Replace("user@host", "$2.$1") = reCom.Replace("user@host", "$2.$1")  ' "host.user"
-        ' literal $ via $$ (matches COM)
-        re.Pattern = "\d+": reCom.Pattern = re.Pattern
-        Debug.Assert re.Replace("100", "$$$&") = reCom.Replace("100", "$$$&")       ' "$100"
-        ' No COM counterpart: $<name> named replacement
-        re.Pattern = "(?<y>\d{4})-(?<m>\d{2})"
-        Debug.Assert re.Replace("2026-07", "$<m>/$<y>") = "07/2026"
+    '--------------------------- Match members ---------------------------
+    re.Pattern = "\d+": reCom.Pattern = re.Pattern
+    Set m = re.Execute("abc123def")(0)
+    Set mCom = reCom.Execute("abc123def")(0)
+    Debug.Assert m.Value = mCom.Value                  ' "123"
+    Debug.Assert m.FirstIndex = mCom.FirstIndex        ' 3 (zero-based)
+    Debug.Assert m.Length = mCom.Length                ' 3
+    Debug.Assert m.Value = "123"
+    Debug.Assert m.FirstIndex = 3
+    Debug.Assert m.Length = 3
 
-        '------------------------------ Lookahead ----------------------------
-        ' COM supports lookahead
-        re.Global = True: reCom.Global = True
-        re.Pattern = "\d+(?= dollars)": reCom.Pattern = re.Pattern
-        Debug.Assert re.Execute("5 dollars, 6 euros")(0).Value = reCom.Execute("5 dollars, 6 euros")(0).Value  ' "5"
-        re.Pattern = "\d+(?! dollars)": reCom.Pattern = re.Pattern
-        Debug.Assert re.Execute("5 dollars 6 euros")(0).Value = reCom.Execute("5 dollars 6 euros")(0).Value    ' "6"
+    '--------------------------- Test / Global ---------------------------
+    re.Pattern = "\d+": reCom.Pattern = re.Pattern
+    re.Global = True: reCom.Global = True
+    Debug.Assert re.Test("a1b2c3") = reCom.Test("a1b2c3")           ' True
+    Debug.Assert re.Test("abcdef") = reCom.Test("abcdef")          ' False
+    ' Global affects match count
+    Debug.Assert re.Execute("a1b2c3").Count = reCom.Execute("a1b2c3").Count   ' 3
+    re.Global = False: reCom.Global = False
+    Debug.Assert re.Execute("a1b2c3").Count = reCom.Execute("a1b2c3").Count   ' 1
 
-        '-------------------- Lookbehind (beyond COM) ------------------------
-        re.Pattern = "(?<=\$)\d+"
-        Debug.Assert re.Execute("price $50 not 60")(0).Value = "50"
-        re.Pattern = "(?<!\$)\b\d+"
-        Debug.Assert re.Execute("$50 and 60")(0).Value = "60"
-        
-        ' zero-width ^ inside a lookbehind must not fire at boundary 1
-        re.Global = True
-        re.Pattern = "(?<!^)."
-        Debug.Assert re.Execute("abc").Count = 2
-        Debug.Assert re.Execute("abc")(0).Value = "b"
-        Debug.Assert re.Execute("abc")(1).Value = "c"
+    '--------------------------- MatchCollection -------------------------
+    re.Pattern = "\w+": reCom.Pattern = re.Pattern
+    re.Global = True: reCom.Global = True
+    Set mc = re.Execute("one two three")
+    Set mcCom = reCom.Execute("one two three")
+    Debug.Assert mc.Count = mcCom.Count                ' 3
+    ' Item() by index (zero-based)
+    Debug.Assert mc(0).Value = "one"
+    Debug.Assert mc(1).Value = "two"
+    Debug.Assert mc(2).Value = "three"
+    ' For Each enumeration
+    n = 0
+    For Each m In mc
+        Debug.Assert m.Value = mc(n).Value
+        n = n + 1
+    Next m
+    Debug.Assert n = 3
 
-        ' \b inside a lookbehind must be correct at boundaries 0 and 1
-        re.Pattern = "(?<=\b)\w"
-        Debug.Assert re.Execute("ab cd").Count = 2
-        Debug.Assert re.Execute("ab cd")(0).Value = "a"
-        Debug.Assert re.Execute("ab cd")(1).Value = "c"
-        
-        '------------------------ DotAll (beyond COM) ------------------------
-        testStr = "start" & vbCrLf & "end"
-        re.Pattern = "start.*end"
-        re.DotAll = True
-        Debug.Assert re.Test(testStr) = True         ' '.' spans the line break
-        re.DotAll = False
-        Debug.Assert re.Test(testStr) = False        ' default: '.' stops at newline
+    '--------------------------- IgnoreCase ------------------------------
+    re.Pattern = "hello": reCom.Pattern = re.Pattern
+    re.IgnoreCase = True: reCom.IgnoreCase = True
+    Debug.Assert re.Test("HELLO") = reCom.Test("HELLO")            ' True
+    re.IgnoreCase = False: reCom.IgnoreCase = False
+    Debug.Assert re.Test("HELLO") = reCom.Test("HELLO")           ' False
 
-        '------------------ Inline modifiers (beyond COM) --------------------
-        re.Pattern = "(?i)hello"
-        Debug.Assert re.Test("HELLO there") = True
-        re.Pattern = "(?i:abc)DEF"
-        Debug.Assert re.Test("ABCDEF") = True
-        Debug.Assert re.Test("ABCdef") = False       ' scope: only 'abc' is case-insensitive
-        re.Pattern = "foo(?s:.*)bar"
-        Debug.Assert re.Test("foo" & vbCrLf & "bar") = True   ' DotAll only inside the group
+    '--------------------------- MultiLine -------------------------------
+    testStr = "one" & vbCrLf & "two"
+    re.Pattern = "^two": reCom.Pattern = re.Pattern
+    re.Global = True: reCom.Global = True
+    re.MultiLine = False: reCom.MultiLine = False
+    Debug.Assert re.Test(testStr) = reCom.Test(testStr)           ' False
+    re.MultiLine = True: reCom.MultiLine = True
+    Debug.Assert re.Test(testStr) = reCom.Test(testStr)          ' True
+    ' which characters start a line - LF, CR and U+2028/U+2029 all do (matches COM)
+    re.Pattern = "^b": reCom.Pattern = re.Pattern
+    Debug.Assert re.Test("a" & vbLf & "b") = reCom.Test("a" & vbLf & "b")      ' True
+    Debug.Assert re.Test("a" & vbCr & "b") = reCom.Test("a" & vbCr & "b")      ' True
+    Debug.Assert re.Test("a" & ChrW$(&H2028&) & "b") = reCom.Test("a" & ChrW$(&H2028&) & "b")   ' True
+    ' and which end one
+    re.Pattern = "a$": reCom.Pattern = re.Pattern
+    Debug.Assert re.Test("a" & vbLf & "b") = reCom.Test("a" & vbLf & "b")      ' True
+    Debug.Assert re.Test("a" & vbCr & "b") = reCom.Test("a" & vbCr & "b")      ' True
+    re.MultiLine = False: reCom.MultiLine = False
 
-        '------------------------ Split (beyond COM) -------------------------
-        re.Pattern = "\s*,\s*"
-        re.Global = True ' Split needs Global to split on all delimiters
-        Set parts = re.Split("a , b,c ,  d")
-        Debug.Assert parts.Count = 4
-        Debug.Assert parts(1) = "a"
-        Debug.Assert parts(4) = "d"
-        re.Pattern = "\d"
-        Set parts = re.Split("a1b2c")
-        Debug.Assert parts(1) = "a"
-        Debug.Assert parts(2) = "b"
-        Debug.Assert parts(3) = "c"
-        ' Split with a capture group keeps the captured delimiter
-        re.Pattern = "(\d)"
-        Set parts = re.Split("a1b2c")
-        Debug.Assert parts(1) = "a"
-        Debug.Assert parts(2) = "1"
-        Debug.Assert parts(3) = "b"
-        Debug.Assert parts(4) = "2"
-        Debug.Assert parts(5) = "c"
+    '------------------- '.' and line terminators (COM parity) -----------
+    ' VBScript's '.' excludes ONLY LF - it matches CR and U+2028/U+2029.
+    ' Note this differs from the multiline anchors above, which break on all
+    ' four. That inconsistency is VBScript's, and is reproduced deliberately.
+    re.Pattern = ".": reCom.Pattern = re.Pattern
+    Debug.Assert re.Test(vbLf) = reCom.Test(vbLf)                            ' False
+    Debug.Assert re.Test(vbCr) = reCom.Test(vbCr)                            ' True
+    Debug.Assert re.Test(vbCrLf) = reCom.Test(vbCrLf)                        ' True
+    Debug.Assert re.Test(ChrW$(&H2028&)) = reCom.Test(ChrW$(&H2028&))        ' True
+    Debug.Assert re.Test(ChrW$(&H2029&)) = reCom.Test(ChrW$(&H2029&))        ' True
+    ' combined effect: '.' consumes the CR of a CRLF line, exactly as COM does
+    re.MultiLine = True: reCom.MultiLine = True
+    re.Pattern = "^.*$": reCom.Pattern = re.Pattern
+    testStr = "abc" & vbCrLf & "def"
+    Debug.Assert re.Execute(testStr)(0).Value = reCom.Execute(testStr)(0).Value
+    Debug.Assert re.Execute(testStr)(0).Length = 4                           ' "abc" & vbCr
+    re.MultiLine = False: reCom.MultiLine = False
 
-        '------------------- Flags convenience property (beyond COM) ------------
-        re.Flags = "gi"                              ' Global + IgnoreCase
-        re.Pattern = "cat"
-        Debug.Assert re.Execute("Cat cat CAT").Count = 3
-        re.Flags = "s"                               ' DotAll only (clears Global/IgnoreCase)
-        re.Pattern = "a.b"
-        Debug.Assert re.Test("a" & vbLf & "b") = True
-        
-        '------------------- bare ] and } outside class/quantifier are literals --
-        re.Pattern = "\[Text\(.*?\)]"
-        Debug.Assert re.Test("x [Text(A, B)] y") = True
-        re.Pattern = "a}b"
-        Debug.Assert re.Test("a}b") = True
-        ' escaped forms still work (unchanged)
-        re.Pattern = "a\]b"
-        Debug.Assert re.Test("a]b") = True
-        ' character classes still parse correctly (] inside is the terminator)
-        re.Pattern = "[abc]+"
-        Debug.Assert re.Test("cab") = True
-        ' quantifiers still parse correctly
-        re.Pattern = "a{2,3}"
-        Debug.Assert re.Test("aaa") = True
-        Debug.Assert re.Test("a") = False
-        ' unterminated class is still an error
-        re.Pattern = "[abc"
-        Debug.Assert re.IsValid = False
-        
-        ' unescaped ],} treated as literal
-        Dim t As String
-        t = "[Text(A,B)]"
-        re.Pattern = "\[Text\(.*?\)]": reCom.Pattern = re.Pattern
-        Debug.Assert re.Test(t) = reCom.Test(t)
-        t = "{Text(A,B)}"
-        re.Pattern = "\{Text\(.*?\)}": reCom.Pattern = re.Pattern
-        Debug.Assert re.Test(t) = reCom.Test(t)
-        
-        '------------------------------ Edge cases ---------------------------
-        ' no match: Count = 0, Test = False (matches COM)
-        re.Pattern = "xyz": reCom.Pattern = re.Pattern
-        Debug.Assert re.Execute("abc").Count = reCom.Execute("abc").Count   ' 0
-        Debug.Assert re.Test("abc") = reCom.Test("abc")                    ' False
-        ' empty pattern matches empty at each position (matches COM)
-        re.Pattern = "": reCom.Pattern = re.Pattern
-        Debug.Assert re.Test("abc") = reCom.Test("abc")                    ' True
-        
-        '-------------------- Validity / diagnostics (beyond COM) ------------
-        ' IsValid / LastError let you check a pattern without raising.
-        re.Pattern = "a(b)c"                         ' well-formed
-        Debug.Assert re.IsValid = True
-        Debug.Assert Len(re.LastError) = 0
+    '------------------- Anchors / classes / alternation -----------------
+    re.Global = True: reCom.Global = True
+    re.Pattern = "\bcat\b": reCom.Pattern = re.Pattern
+    Debug.Assert re.Execute("cat cats scatter cat").Count = reCom.Execute("cat cats scatter cat").Count  ' 2
+    re.Pattern = "^\d+$": reCom.Pattern = re.Pattern
+    Debug.Assert re.Test("12345") = reCom.Test("12345")           ' True
+    Debug.Assert re.Test("12a45") = reCom.Test("12a45")          ' False
+    re.Pattern = "cat|dog|bird": reCom.Pattern = re.Pattern
+    Debug.Assert re.Execute("a cat and a dog").Count = reCom.Execute("a cat and a dog").Count  ' 2
+    re.Pattern = "colou?r": reCom.Pattern = re.Pattern
+    Debug.Assert re.Test("color") = reCom.Test("color")           ' True
+    Debug.Assert re.Test("colour") = reCom.Test("colour")        ' True
 
-        re.Pattern = "(abc"                          ' unclosed group
-        Debug.Assert re.IsValid = False
-        Debug.Assert Len(re.LastError) > 0
+    '------------------------------ Replace ------------------------------
+    re.Pattern = "\s+": reCom.Pattern = re.Pattern
+    Debug.Assert re.Replace("a  b   c", " ") = reCom.Replace("a  b   c", " ")   ' "a b c"
+    ' numbered backreferences $1 $2 (matches COM)
+    re.Pattern = "(\w+)@(\w+)": reCom.Pattern = re.Pattern
+    Debug.Assert re.Replace("user@host", "$2.$1") = reCom.Replace("user@host", "$2.$1")  ' "host.user"
+    ' literal $ via $$ (matches COM)
+    re.Pattern = "\d+": reCom.Pattern = re.Pattern
+    Debug.Assert re.Replace("100", "$$$&") = reCom.Replace("100", "$$$&")       ' "$100"
+    ' No COM counterpart: $<name> named replacement
+    re.Pattern = "(?<y>\d{4})-(?<m>\d{2})"
+    Debug.Assert re.Replace("2026-07", "$<m>/$<y>") = "07/2026"
 
-        re.Pattern = "[z-a]"                         ' reversed character range
-        Debug.Assert re.IsValid = False
+    ' literal $ parity with COM: a '$' that starts no substitution item is text
+    re.Pattern = "\d+": reCom.Pattern = re.Pattern
+    Debug.Assert re.Replace("5", "$ each") = reCom.Replace("5", "$ each")        ' "$ each"
+    Debug.Assert re.Replace("5", "US$") = reCom.Replace("5", "US$")              ' "US$"
+    Debug.Assert re.Replace("5", "a$") = reCom.Replace("5", "a$")                ' "a$"
+    Debug.Assert re.Replace("5", "$x") = reCom.Replace("5", "$x")                ' "$x"
+    Debug.Assert re.Replace("5", "$0") = reCom.Replace("5", "$0")                ' "$0"
+    ' out-of-range group number is literal, not empty
+    Debug.Assert re.Replace("5", "$7") = reCom.Replace("5", "$7")                ' "$7"
+    ' two-digit max with one-digit fallback
+    re.Pattern = "(\d)(\d)": reCom.Pattern = re.Pattern
+    Debug.Assert re.Replace("12", "$100") = reCom.Replace("12", "$100")          ' "100"
+    Debug.Assert re.Replace("12", "$01") = reCom.Replace("12", "$01")            ' "1"
+    Debug.Assert re.Replace("12", "$2$1") = reCom.Replace("12", "$2$1")          ' "21"
+    ' $< is literal when the pattern declares no named groups
+    re.Pattern = "\d+": reCom.Pattern = re.Pattern
+    Debug.Assert re.Replace("5", "$<note>") = reCom.Replace("5", "$<note>")      ' "$<note>"
+    ' named group - unknown name
+    re.Pattern = "(?<y>\d{4})-(?<m>\d{2})"
+    Debug.Assert re.Replace("2026-07", "$<nope>!") = "!"                         ' unknown name -> ""
 
-        re.Pattern = "*abc"                          ' quantifier with nothing to repeat
-        Debug.Assert re.IsValid = False
+    '------------------------------ Lookahead ----------------------------
+    ' COM supports lookahead
+    re.Global = True: reCom.Global = True
+    re.Pattern = "\d+(?= dollars)": reCom.Pattern = re.Pattern
+    Debug.Assert re.Execute("5 dollars, 6 euros")(0).Value = reCom.Execute("5 dollars, 6 euros")(0).Value  ' "5"
+    re.Pattern = "\d+(?! dollars)": reCom.Pattern = re.Pattern
+    Debug.Assert re.Execute("5 dollars 6 euros")(0).Value = reCom.Execute("5 dollars 6 euros")(0).Value    ' "6"
 
-        re.Pattern = "(?<1st>\d)"                    ' group name may not start with a digit
-        Debug.Assert re.IsValid = False
+    '-------------------- Lookbehind (beyond COM) ------------------------
+    re.Pattern = "(?<=\$)\d+"
+    Debug.Assert re.Execute("price $50 not 60")(0).Value = "50"
+    re.Pattern = "(?<!\$)\b\d+"
+    Debug.Assert re.Execute("$50 and 60")(0).Value = "60"
 
-        re.Pattern = "(?<year_1>\d{4})"              ' letters/digits/underscore names are OK
-        Debug.Assert re.IsValid = True
-        Debug.Assert re.Execute("2026")(0).SubMatches("year_1") = "2026"
-        
-        Debug.Print "testSurface: all checks passed"
-    End Sub
+    ' zero-width ^ inside a lookbehind must not fire at boundary 1
+    re.Global = True
+    re.Pattern = "(?<!^)."
+    Debug.Assert re.Execute("abc").Count = 2
+    Debug.Assert re.Execute("abc")(0).Value = "b"
+    Debug.Assert re.Execute("abc")(1).Value = "c"
+
+    ' \b inside a lookbehind must be correct at boundaries 0 and 1
+    re.Pattern = "(?<=\b)\w"
+    Debug.Assert re.Execute("ab cd").Count = 2
+    Debug.Assert re.Execute("ab cd")(0).Value = "a"
+    Debug.Assert re.Execute("ab cd")(1).Value = "c"
+
+    '------------------------ DotAll (beyond COM) ------------------------
+    testStr = "start" & vbCrLf & "end"
+    re.Pattern = "start.*end"
+    re.DotAll = True
+    Debug.Assert re.Test(testStr) = True         ' '.' spans the line break
+    re.DotAll = False
+    Debug.Assert re.Test(testStr) = False        ' default: '.' stops at newline
+    ' DotAll overrides the LF exclusion entirely (the only terminator '.' omits)
+    re.Pattern = "."
+    re.DotAll = True
+    Debug.Assert re.Test(vbLf) = True
+    re.DotAll = False
+    Debug.Assert re.Test(vbLf) = False
+
+    '------------------ Inline modifiers (beyond COM) --------------------
+    re.Pattern = "(?i)hello"
+    Debug.Assert re.Test("HELLO there") = True
+    re.Pattern = "(?i:abc)DEF"
+    Debug.Assert re.Test("ABCDEF") = True
+    Debug.Assert re.Test("ABCdef") = False       ' scope: only 'abc' is case-insensitive
+    re.Pattern = "foo(?s:.*)bar"
+    Debug.Assert re.Test("foo" & vbCrLf & "bar") = True   ' DotAll only inside the group
+
+    '------------------------ Split (beyond COM) -------------------------
+    re.Pattern = "\s*,\s*"
+    re.Global = True ' Split needs Global to split on all delimiters
+    Set parts = re.Split("a , b,c ,  d")
+    Debug.Assert parts.Count = 4
+    Debug.Assert parts(1) = "a"
+    Debug.Assert parts(4) = "d"
+    re.Pattern = "\d"
+    Set parts = re.Split("a1b2c")
+    Debug.Assert parts(1) = "a"
+    Debug.Assert parts(2) = "b"
+    Debug.Assert parts(3) = "c"
+    ' Split with a capture group keeps the captured delimiter
+    re.Pattern = "(\d)"
+    Set parts = re.Split("a1b2c")
+    Debug.Assert parts(1) = "a"
+    Debug.Assert parts(2) = "1"
+    Debug.Assert parts(3) = "b"
+    Debug.Assert parts(4) = "2"
+    Debug.Assert parts(5) = "c"
+
+    '------------------- Flags convenience property (beyond COM) ------------
+    re.Flags = "gi"                              ' Global + IgnoreCase
+    re.Pattern = "cat"
+    Debug.Assert re.Execute("Cat cat CAT").Count = 3
+    re.Flags = "s"                               ' DotAll only (clears Global/IgnoreCase)
+    re.Pattern = "a.b"
+    Debug.Assert re.Test("a" & vbLf & "b") = True
+
+    re.Flags = "GI"
+    Debug.Assert re.Global
+    Debug.Assert re.IgnoreCase
+    Debug.Assert Not re.MultiLine       ' Unspecified flag value set to default (false)
+    Debug.Assert re.Flags = "gi"
+    re.DotAll = True
+    Debug.Assert re.Flags = "gis"
+    re.Flags = "m"
+    Debug.Assert re.Flags = "m"
+    Debug.Assert Not re.Global          ' Unspecified flag value set to default (false)
+    re.Flags = vbNullString             ' Reset to all falg values to default (false)
+    Debug.Assert Len(re.Flags) = 0
+
+    '------------------- bare ] and } outside class/quantifier are literals --
+    re.Pattern = "a}b"
+    Debug.Assert re.Test("a}b") = True
+    ' escaped forms still work (unchanged)
+    re.Pattern = "a\]b"
+    Debug.Assert re.Test("a]b") = True
+    ' character classes still parse correctly (] inside is the terminator)
+    re.Pattern = "[abc]+"
+    Debug.Assert re.Test("cab") = True
+    ' quantifiers still parse correctly
+    re.Pattern = "a{2,3}"
+    Debug.Assert re.Test("aaa") = True
+    Debug.Assert re.Test("a") = False
+    ' unterminated class is still an error
+    re.Pattern = "[abc"
+    Debug.Assert re.IsValid = False
+
+    ' unescaped ],} treated as literal (matches COM)
+    testStr = "[Text(A,B)]"
+    re.Pattern = "\[Text\(.*?\)]": reCom.Pattern = re.Pattern
+    Debug.Assert re.Test(testStr) = reCom.Test(testStr)
+    testStr = "{Text(A,B)}"
+    re.Pattern = "\{Text\(.*?\)}": reCom.Pattern = re.Pattern
+    Debug.Assert re.Test(testStr) = reCom.Test(testStr)
+
+    '------------------------------ Edge cases ---------------------------
+    ' no match: Count = 0, Test = False (matches COM)
+    re.Pattern = "xyz": reCom.Pattern = re.Pattern
+    Debug.Assert re.Execute("abc").Count = reCom.Execute("abc").Count   ' 0
+    Debug.Assert re.Test("abc") = reCom.Test("abc")                    ' False
+    ' empty pattern matches empty at each position (matches COM)
+    re.Pattern = "": reCom.Pattern = re.Pattern
+    Debug.Assert re.Test("abc") = reCom.Test("abc")                    ' True
+
+    '-------------------- Validity / diagnostics (beyond COM) ------------
+    ' IsValid / LastError let you check a pattern without raising.
+    re.Pattern = "a(b)c"                         ' well-formed
+    Debug.Assert re.IsValid = True
+    Debug.Assert Len(re.LastError) = 0
+
+    re.Pattern = "(abc"                          ' unclosed group
+    Debug.Assert re.IsValid = False
+    Debug.Assert Len(re.LastError) > 0
+
+    re.Pattern = "[z-a]"                         ' reversed character range
+    Debug.Assert re.IsValid = False
+
+    re.Pattern = "*abc"                          ' quantifier with nothing to repeat
+    Debug.Assert re.IsValid = False
+
+    re.Pattern = "(?<1st>\d)"                    ' group name may not start with a digit
+    Debug.Assert re.IsValid = False
+
+    re.Pattern = "(?<year_1>\d{4})"              ' letters/digits/underscore names are OK
+    Debug.Assert re.IsValid = True
+    Debug.Assert re.Execute("2026")(0).SubMatches("year_1") = "2026"
+
+    Debug.Print "testSurface: all checks passed"
+End Sub
 
 End Module

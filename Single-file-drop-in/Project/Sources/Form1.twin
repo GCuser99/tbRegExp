@@ -5,5 +5,11 @@ Class Form1
 
 	Sub New()
 	End Sub
+	
+	Private Sub Command1_Click()
+		
+	End Sub
+    
+    
 
 End Class

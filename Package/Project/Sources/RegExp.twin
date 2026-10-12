@@ -8,7 +8,7 @@
 ' Lazy / shared-empty SubMatches. Match doesn't allocate a
 '   SubMatches + Collection per match; group-less matches share one empty
 '   instance (modRegexShared.EmptySubMatches); grouped matches build via
-'   Friend AddSubMatch. Took group-less Execute from ~5s to ~90ms (~55x).
+'   Friend AddSubMatch.
 '
 ' Array-backed SubMatches (mVals/mKeys, not a Collection); the
 '   enumeration Collection is built lazily for For Each only.
@@ -23,10 +23,10 @@ Public Class RegExp
     ' ==========================================================================
     ' RegExp
     '
-    ' A drop-in replacement for VBSript's regular expressions object model 
+    ' A drop-in replacement for VBSript's regular expressions object model
     ' by wrapping sihlfall's excellent vba-regex (https://github.com/sihlfall/vba-regex)
     '
-    ' The dependency for this class is the StaticRegex module. For how to obtain the 
+    ' The dependency for this class is the StaticRegex module. For how to obtain the
     ' latest copy, please see following link:
     ' https://github.com/sihlfall/vba-regex/tree/master/aio
     '
@@ -53,7 +53,7 @@ Public Class RegExp
     ' LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
     ' OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
     ' SOFTWARE.
-    ' ========================================================================== 
+    ' ==========================================================================
 
     Private mGlobal As Boolean
     Private mMultiLine As Boolean
@@ -66,8 +66,16 @@ Public Class RegExp
     Private mLastError As String
     Private mLastErrNumber As Long
 
+    ' Named-capture map and capture count, cached per compiled Pattern. Both are
+    ' pure functions of the bytecode, so they are computed once in EnsureCompiled
+    ' rather than rebuilt on every Execute call.
+    Private mCapNames() As String       ' 0-based, one entry per DISTINCT named capture
+    Private mCapEntryPoints() As Long   ' parallel: identifier id, indexes namedCaptures()
+    Private mNamedCount As Long         ' = bytecode(BYTECODE_IDX_N_IDENTIFIERS)
+    Private mNumCaptures As Long        ' = number of numbered capture groups
+
     Private regex As StaticRegex.RegexTy
-    
+
     [Description("Sets or Gets the options in use: g-global; m-multiline; i-ignore case; s-dot all. Example: 'gm' sets Global and MultiLine to 'True', IgnoreCase and DotAll to 'False'.")]
     Public Property Let Flags(ByVal pFlags As String)
         ' Note that if a flag indicator is not present in the string, then it is set to False
@@ -84,7 +92,7 @@ Public Class RegExp
         If mIgnoreCase Then Flags = Flags & "i"
         If mDotAll Then Flags = Flags & "s"
     End Property
-    
+
     [Description("If 'True', all matches will be returned. If 'False', only the first match will be returned. Defaults to 'False'")]
     Public Property Let Global(ByVal pGlobal As Boolean)
         mGlobal = pGlobal
@@ -92,7 +100,7 @@ Public Class RegExp
     Public Property Get Global() As Boolean
         Global = mGlobal
     End Property
-    
+
     [Description("If 'True', '^' pattern will match the beginning of a line after a new line character and '$' will match the end of a line before a new line character. If 'False' (default), '^' will match the beginning of the entire string and '$' will match the end of the entire string.")]
     Public Property Let MultiLine(ByVal pMultiLine As Boolean)
         mMultiLine = pMultiLine
@@ -100,7 +108,7 @@ Public Class RegExp
     Public Property Get MultiLine() As Boolean
         MultiLine = mMultiLine
     End Property
-    
+
     [Description("If 'True', '.' pattern will match across new line charactors. Defaults to 'False'")]
     Public Property Let DotAll(ByVal pDotAll As Boolean)
         mDotAll = pDotAll
@@ -108,7 +116,7 @@ Public Class RegExp
     Public Property Get DotAll() As Boolean
         DotAll = mDotAll
     End Property
-    
+
     [Description("If 'True', matches will be case-insensitive. If 'False', matches will be case-sensitive. Defaults to 'False'")]
     Public Property Let IgnoreCase(ByVal pIgnoreCase As Boolean)
         If pIgnoreCase <> mIgnoreCase Then
@@ -119,7 +127,7 @@ Public Class RegExp
     Public Property Get IgnoreCase() As Boolean
         IgnoreCase = mIgnoreCase
     End Property
-    
+
     [Description("The regular expression pattern.")]
     Public Property Let Pattern(ByVal pPattern As String)
         If pPattern <> mPattern Then
@@ -130,7 +138,7 @@ Public Class RegExp
     Public Property Get Pattern() As String
         Pattern = mPattern
     End Property
-    
+
     [Description("Returns a MatchCollection. Uses the Pattern property to search the sourceString.")]
     Public Function Execute(ByVal sourceString As String) As MatchCollection
         Dim matcherState As StaticRegex.MatcherStateTy
@@ -138,17 +146,12 @@ Public Class RegExp
         Dim oMatch As Match
         Dim i As Long
         Dim matchStart As Long, matchLength As Long
-        
+
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
 
         StaticRegex.InitializeMatcherState matcherState, Not mGlobal, mMultiLine, mDotAll
-    
-        Dim colNames As Collection: Set colNames = New Collection
-        Dim colEntryPoints As Collection: Set colEntryPoints = New Collection
-        
-        GetNamedCapturesInfo colNames, colEntryPoints
-        
+
         Set oMatches = New MatchCollection
 
         Do While StaticRegex.MatchNext(matcherState, regex, sourceString)
@@ -175,12 +178,12 @@ Public Class RegExp
                     ReDim subVals(0 To n - 1)
                     ReDim subKeys(0 To n - 1)       ' vbNullString by default = unnamed
 
-                    ' name the slots (single pass over named captures)
-                    If .nNamedCaptures > 0 Then
+                    ' name the slots (single pass over distinct named captures)
+                    If mNamedCount > 0 Then
                         Dim referenced As Long
-                        For i = 1 To colNames.Count
-                            referenced = .namedCaptures(colEntryPoints(i))
-                            If referenced <> -1 Then subKeys(referenced - 1) = colNames(i)
+                        For i = 0 To mNamedCount - 1
+                            referenced = .namedCaptures(mCapEntryPoints(i))
+                            If referenced <> -1 Then subKeys(referenced - 1) = mCapNames(i)
                         Next i
                     End If
 
@@ -203,28 +206,28 @@ Public Class RegExp
         Loop
         Set Execute = oMatches
     End Function
-    
+
     [Description("Returns 'True' if Pattern finds a match in sourceString, otherwise returns 'False'.")]
     Public Function Test(ByVal sourceString As String) As Boolean
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
         Test = StaticRegex.Test(regex, sourceString, mMultiLine, mDotAll)
     End Function
-    
+
     [Description("Replaces matches with replaceString and returns the String with replacements made.")]
     Public Function Replace(ByVal sourceString As String, ByVal replaceString As String) As String
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
         Replace = StaticRegex.ReplaceByRegEx(regex, replaceString, sourceString, Not mGlobal, mMultiLine, mDotAll)
     End Function
-    
+
     [Description("Splits an input string into an array of substrings at the positions defined by a regular expression match. Needs Global Property set to 'True'.")]
     Public Function Split(ByVal sourceString As String) As Collection
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
         Set Split = StaticRegex.SplitByRegex(regex, sourceString, Not mGlobal, mMultiLine, mDotAll)
     End Function
-    
+
     [Description("Returns True if the current Pattern compiles successfully; False if it is invalid. Does not raise.")]
     Public Property Get IsValid() As Boolean
         EnsureCompiled
@@ -242,11 +245,16 @@ Public Class RegExp
         EnsureCompiled
         LastErrorNumber = mLastErrNumber
     End Property
-    
+
     ' Compiles the current Pattern once per Pattern/IgnoreCase change, trapping any engine
     ' error so validity can be queried without raising. Never raises. IgnoreCase is the only
     ' compile-time flag; MultiLine/DotAll/Global are applied at match time, so recompiling
     ' only on Pattern/IgnoreCase change is correct.
+    '
+    ' CacheCaptureInfo is inside the protected region deliberately: it reads bytecode that
+    ' InitializeRegex just produced and should not throw, but letting it escape would break
+    ' the documented "IsValid does not raise" contract. Inside, a bug there is merely
+    ' misreported as an invalid pattern.
     Private Sub EnsureCompiled()
         If mCompileAttempted Then Exit Sub
         mCompileAttempted = True
@@ -255,6 +263,7 @@ Public Class RegExp
 
         On Error GoTo CompileFailed
         StaticRegex.InitializeRegex regex, mPattern, mIgnoreCase
+        CacheCaptureInfo
         On Error GoTo 0
         mIsValid = True
         Exit Sub
@@ -263,36 +272,65 @@ CompileFailed:
         mLastErrNumber = Err.Number
         mLastError = ErrText(mLastErrNumber, Err.Description)
         mIsValid = False
+        ' a failed compile leaves the PREVIOUS pattern's cache in place; every public
+        ' entry point raises on Not mIsValid before touching it, so this keeps that true
+        mNamedCount = 0
+        mNumCaptures = 0
     End Sub
-    
-    Private Sub GetNamedCapturesInfo(ByRef colNames As Collection, ByRef colEntryPoints As Collection)
+
+    ' Walks the bytecode identifier map once per compiled Pattern and caches the
+    ' name -> identifier-id mapping as arrays. Also derives the numbered-capture count.
+    '
+    ' The identifier map is a red-black tree keyed by name, so mNamedCount is the
+    ' number of DISTINCT names - a pattern with duplicate names has fewer entries
+    ' here than it has named groups.
+    Private Sub CacheCaptureInfo()
         Dim identifierMapEnd As Long
         Dim currentEntry As Long
-        Dim identifier As String
-        
+        Dim k As Long
+
+        mNamedCount = regex.bytecode(BYTECODE_IDX_N_IDENTIFIERS)
+
+        ' Mirrors StaticRegex (DfsMatch):
+        '   nProperCapturePoints = bytecode(0) + 1
+        '   nNumberedCaptures    = nProperCapturePoints \ 2 - 1
+        mNumCaptures = (regex.bytecode(BYTECODE_IDX_MAX_PROPER_CAPTURE_SLOT) + 1) \ 2 - 1
+        If mNumCaptures < 0 Then mNumCaptures = 0
+
+        If mNamedCount <= 0 Then
+            mNamedCount = 0
+            Erase mCapNames
+            Erase mCapEntryPoints
+            Exit Sub
+        End If
+
+        ReDim mCapNames(0 To mNamedCount - 1)
+        ReDim mCapEntryPoints(0 To mNamedCount - 1)
+
         identifierMapEnd = BYTECODE_IDENTIFIER_MAP_BEGIN + _
-            BYTECODE_IDENTIFIER_MAP_ENTRY_SIZE * regex.bytecode(BYTECODE_IDX_N_IDENTIFIERS)
+            BYTECODE_IDENTIFIER_MAP_ENTRY_SIZE * mNamedCount
         currentEntry = BYTECODE_IDENTIFIER_MAP_BEGIN
+        k = 0
 
         Do While currentEntry < identifierMapEnd
-            identifier = Mid$( _
+            mCapNames(k) = Mid$( _
                 regex.pattern, _
                 regex.bytecode(currentEntry + BYTECODE_IDENTIFIER_MAP_ENTRY_START_IN_PATTERN), _
                 regex.bytecode(currentEntry + BYTECODE_IDENTIFIER_MAP_ENTRY_LENGTH_IN_PATTERN) _
             )
-            colNames.Add(identifier)
-            colEntryPoints.Add(regex.bytecode(currentEntry + BYTECODE_IDENTIFIER_MAP_ENTRY_ID))
+            mCapEntryPoints(k) = regex.bytecode(currentEntry + BYTECODE_IDENTIFIER_MAP_ENTRY_ID)
+            k = k + 1
             currentEntry = currentEntry + BYTECODE_IDENTIFIER_MAP_ENTRY_SIZE
         Loop
     End Sub
-    
+
     Private Sub Class_Initialize()
         mGlobal = False 'StaticRegex defaults to True
         mMultiLine = False
         mIgnoreCase = False
         mDotAll = False
     End Sub
-    
+
     ' Maps an engine REGEX_ERR_* number to a human-readable description.
     ' Offsets mirror StaticRegex's error enum (REGEX_ERR = vbObjectError + 3000).
     Private Function DescribeRegexError(ByVal errNum As Long) As String
@@ -355,7 +393,7 @@ End Class
 [Description("This class represents the results from a single regular expression match.")]
 Public Class Match
     Option Explicit
-    
+
     Private oSubMatches As SubMatches
     Private mValue As String
     Private mFirstIndex As Long
@@ -401,7 +439,7 @@ Public Class Match
             oSubMatches.Internal_SetData subVals, subKeys, subCount
         End If
     End Sub
-    
+
     Private Sub Class_Terminate()
         Set oSubMatches = Nothing
     End Sub
@@ -414,23 +452,38 @@ End Class
 Public Class MatchCollection
     Option Explicit
 
-    Private colMatches As Collection
+    Private mItems() As Match
+    Private mCount As Long
+    Private mCap As Long
 
     Friend Sub Internal_Add(obj As Match)
-        colMatches.Add obj
+        If mCount = mCap Then
+            If mCap = 0 Then mCap = 8 Else mCap = mCap * 2
+            ReDim Preserve mItems(0 To mCap - 1)
+        End If
+        Set mItems(mCount) = obj
+        mCount = mCount + 1
     End Sub
-    
+
+    ' Read seam for MatchCollectionEnum, so the enumerator copies nothing and
+    ' skips Item's Variant arithmetic.
+    Friend Function Internal_ItemAt(ByVal pIndex As Long) As Match
+        Set Internal_ItemAt = mItems(pIndex)
+    End Function
+
     [Description("Returns the number of Match objects found in the source string.")]
     Public Property Get Count() As Long
-       Count = colMatches.Count
+       Count = mCount
     End Property
-    
+
     [Description("Returns the Match object associated with the provided index")]
     [DefaultMember]
     Public Property Get Item(ByVal pItemIndex As Variant) As Match
-        'VBS is zero-based, but Collection is 1-based
-        If pItemIndex + 1 >= 1 And pItemIndex + 1 <= colMatches.Count Then
-            Set Item = colMatches.Item(pItemIndex + 1)
+        'VBS is zero-based. The Variant arithmetic below is kept exactly as it was,
+        'so out-of-range and wrong-type behaviour is unchanged by the move to array
+        'storage.
+        If pItemIndex + 1 >= 1 And pItemIndex + 1 <= mCount Then
+            Set Item = mItems(CLng(pItemIndex))
         Else
             Err.Raise(vbObjectError + 9, , "Requested item not found in Matches collection")
         End If
@@ -439,15 +492,14 @@ Public Class MatchCollection
     [Hidden]
     [Enumerator]
     Public Function NewEnum() As IUnknown
-        Set NewEnum = colMatches.[_NewEnum]
+        Dim e As MatchCollectionEnum
+        Set e = New MatchCollectionEnum
+        e.Attach Me, 0
+        Set NewEnum = e
     End Function
 
     Private Sub Class_Terminate()
-        Set colMatches = Nothing
-    End Sub
-
-    Private Sub Class_Initialize()
-        Set colMatches = New Collection
+        Erase mItems
     End Sub
 
 End Class
@@ -458,22 +510,34 @@ End Class
 Public Class SubMatches
     Option Explicit
 
-    ' Array-backed storage; Collection built lazily only for For Each
+    ' Array-backed storage.
+    ' For Each  gets a real IEnumVARIANT (SubMatchesEnum) that reads mVals in
+    ' place.
     Private mVals() As String
     Private mKeys() As String       ' parallel to mVals; vbNullString for unnamed groups
     Private mCount As Long
     Private mCap As Long
-    Private oEnumColl As Collection ' lazy, For Each only
 
     ' Internal_ prefix: package-internal seam (tB leaks Friend across the package boundary).
-    ' Bulk-assign the backing arrays in one operation instead of N Add calls.
+    ' Bulk-assign the backing arrays in one operation instead of N Add calls. Note that
+    ' array assignment COPIES in tB/VBA, so this instance owns its own data and can never
+    ' alias a caller's scratch buffer.
+    '
+    ' WRITE-ONCE. Match.Internal_Init calls this exactly once, at construction, and
+    ' nothing else mutates a SubMatches afterwards. SubMatchesEnum relies on that:
+    ' it captures Count at Attach time and reads mVals live. If a mutation path is
+    ' ever added here, the enumerator needs a generation counter, the way Cells does.
     Friend Sub Internal_SetData(ByRef vals() As String, ByRef keys() As String, ByVal count As Long)
         mVals = vals            ' single bulk array assignment
         mKeys = keys
         mCount = count
         mCap = count            ' arrays are sized exactly; growth path unused here
-        Set oEnumColl = Nothing
     End Sub
+
+    ' Read seam for SubMatchesEnum, so the enumerator copies nothing.
+    Friend Function Internal_ValueAt(ByVal pIndex As Long) As String
+        Internal_ValueAt = mVals(pIndex)
+    End Function
 
     [Description("Returns the number of SubMatch objects found in the source string.")]
     Public Property Get Count() As Long
@@ -505,21 +569,12 @@ Public Class SubMatches
     [Hidden]
     [Enumerator]
     Public Function NewEnum() As IUnknown
-        ' Build the enumeration Collection on demand (SubMatches are tiny); index/key
-        ' access never gets here, so grouped matches pay no Collection cost during Execute
-        If oEnumColl Is Nothing Then
-            Set oEnumColl = New Collection
-            Dim i As Long
-            For i = 0 To mCount - 1
-                oEnumColl.Add mVals(i)
-            Next i
-        End If
-        Set NewEnum = oEnumColl.[_NewEnum]
+        Dim e As SubMatchesEnum
+        Set e = New SubMatchesEnum
+        e.Attach Me, 0
+        Set NewEnum = e
     End Function
 
-    Private Sub Class_Terminate()
-        Set oEnumColl = Nothing
-    End Sub
 End Class
 
 Private Module modRegexShared
@@ -536,3 +591,161 @@ Private Module modRegexShared
         Set EmptySubMatches = mEmpty
     End Function
 End Module
+
+' ==========================================================================
+'  IEnumVARIANT - For Each support without a throwaway Collection
+'
+'   - For Each ends the loop ONLY on S_FALSE. It passes a NULL pointer for
+'     pCeltFetched and never reads it. A Next that returns S_OK having written
+'     nothing loops forever, so the address is tested before anything is
+'     written through it, and the end of the sequence is Err.ReturnHResult.
+'
+'   - An item written on a call that returns S_FALSE is DROPPED. The call that
+'     writes the LAST item must return S_OK; the call after it returns S_FALSE
+'     having written nothing. Doing both at once silently loses one item.
+'
+'  [PreserveSig] cannot be implemented as of BETA 1005, so the HRESULT comes
+'  back via Err.ReturnHResult rather than as a function result. Next and Reset
+'  are spelled bare despite reading like keywords, as the documented example
+'  does. Asking for more than one item returns one, which is legal as long as
+'  S_FALSE goes with it; this form of the declaration names only the first
+'  element of the caller's array, and nothing here wants a bulk path.
+'
+'  Neither enumerator carries a generation counter, because neither source can
+'  change once the caller can see it: SubMatches is written once by
+'  Match.Internal_Init, and a MatchCollection is fully populated before Execute
+'  returns it. Add a mutation path to either and they will need one.
+' ==========================================================================
+[InterfaceId("00020404-0000-0000-C000-000000000046")]
+Private Interface IEnumVARIANT Extends stdole.IUnknown
+    Sub Next(ByVal celt As Long, ByRef rgVar As Variant, ByRef pCeltFetched As Long)
+    Sub Skip(ByVal celt As Long)
+    Sub Reset()
+    Function Clone() As IEnumVARIANT
+End Interface
+
+[PredeclaredId(False)]
+[Hidden(True)]
+Private Class SubMatchesEnum
+    Option Explicit
+
+    Implements IEnumVARIANT
+
+    Private Const S_FALSE As Long = 1
+
+    Private mSrc As SubMatches
+    Private mCount As Long           ' captured at Attach; SubMatches is write-once
+    Private mPos As Long             ' how many handed out, so 0 means at the start
+
+    ' ByVal, not ByRef: SubMatches.NewEnum passes Me, which is not an lvalue.
+    Friend Sub Attach(ByVal src As SubMatches, ByVal startPos As Long)
+        Set mSrc = src
+        mCount = src.Count
+        mPos = startPos
+    End Sub
+
+    Private Sub Class_Terminate()
+        Set mSrc = Nothing
+    End Sub
+
+    Private Sub Next(ByVal celt As Long, ByRef rgVar As Variant, ByRef pCeltFetched As Long) Implements IEnumVARIANT.Next
+        Dim n As Long
+        If celt > 0 Then
+            If mPos < mCount Then
+                mPos = mPos + 1
+                ' Let, not Set: submatches are Strings, not objects.
+                rgVar = mSrc.Internal_ValueAt(mPos - 1)
+                n = 1
+            End If
+        End If
+        If VarPtr(pCeltFetched) <> 0 Then pCeltFetched = n
+        If n < celt Then Err.ReturnHResult = S_FALSE
+    End Sub
+
+    Private Sub Skip(ByVal celt As Long) Implements IEnumVARIANT.Skip
+        Dim room As Long
+        If celt <= 0 Then Exit Sub
+        room = mCount - mPos
+        If room >= celt Then
+            mPos = mPos + celt
+        Else
+            mPos = mCount
+            Err.ReturnHResult = S_FALSE
+        End If
+    End Sub
+
+    Private Sub Reset() Implements IEnumVARIANT.Reset
+        mPos = 0
+    End Sub
+
+    Private Function Clone() As IEnumVARIANT Implements IEnumVARIANT.Clone
+        Dim e As SubMatchesEnum
+        Set e = New SubMatchesEnum
+        e.Attach mSrc, mPos
+        Set Clone = e
+    End Function
+
+End Class
+
+[PredeclaredId(False)]
+[Hidden(True)]
+Private Class MatchCollectionEnum
+    Option Explicit
+
+    Implements IEnumVARIANT
+
+    Private Const S_FALSE As Long = 1
+
+    Private mSrc As MatchCollection
+    Private mCount As Long           ' captured at Attach; fully populated by then
+    Private mPos As Long
+
+    Friend Sub Attach(ByVal src As MatchCollection, ByVal startPos As Long)
+        Set mSrc = src
+        mCount = src.Count
+        mPos = startPos
+    End Sub
+
+    Private Sub Class_Terminate()
+        Set mSrc = Nothing
+    End Sub
+
+    Private Sub Next(ByVal celt As Long, ByRef rgVar As Variant, _
+                     ByRef pCeltFetched As Long) Implements IEnumVARIANT.Next
+        Dim n As Long
+        If celt > 0 Then
+            If mPos < mCount Then
+                mPos = mPos + 1
+                ' Set, not Let: matches are objects.
+                Set rgVar = mSrc.Internal_ItemAt(mPos - 1)
+                n = 1
+            End If
+        End If
+        If VarPtr(pCeltFetched) <> 0 Then pCeltFetched = n
+        If n < celt Then Err.ReturnHResult = S_FALSE
+    End Sub
+
+    Private Sub Skip(ByVal celt As Long) Implements IEnumVARIANT.Skip
+        Dim room As Long
+        If celt <= 0 Then Exit Sub
+        room = mCount - mPos
+        If room >= celt Then
+            mPos = mPos + celt
+        Else
+            mPos = mCount
+            Err.ReturnHResult = S_FALSE
+        End If
+    End Sub
+
+    Private Sub Reset() Implements IEnumVARIANT.Reset
+        mPos = 0
+    End Sub
+
+    Private Function Clone() As IEnumVARIANT Implements IEnumVARIANT.Clone
+        Dim e As MatchCollectionEnum
+        Set e = New MatchCollectionEnum
+        e.Attach mSrc, mPos
+        Set Clone = e
+    End Function
+
+End Class

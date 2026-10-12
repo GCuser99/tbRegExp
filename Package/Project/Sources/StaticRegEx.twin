@@ -68,6 +68,10 @@ Private Module StaticRegex
     ' PATCH 08 - ^ inside a lookbehind succeeds one position too late (reported upstream)
     '
     ' PATCH 09 - \b inside a lookbehind is wrong at the first two boundaries (reported upstream)
+    '
+    ' PATCH 10 - Replace $ Parity with VBScript
+    '
+    ' PATCH 11 - dot-lineterminator: VBScript parity for '.' wrt to vbCr which is accepted
     ' ==========================================================================
     Option Private Module
     Option Explicit
@@ -488,16 +492,7 @@ Private Module StaticRegex
         isCaseInsensitive As Long
         stepsLimit As Long
     End Type
-    /*
-    Public Type MatcherStateTy
-        localMatch As Boolean
-        multiline As Boolean
-        dotAll As Boolean
-        current As Long
-        captures As CapturesTy
-        context As DfsMatcherContext
-    End Type
-    */
+
     Public Type MatcherStateTy
         localMatch As Boolean
         multiline As Boolean
@@ -1335,6 +1330,19 @@ Private Module StaticRegex
             UnicodeIsLineTerminator = True
         End If
     End Function
+    
+    '>>> PATCH 11 dot-lineterminator: VBScript parity for '.'
+    ' VBScript.RegExp's '.' excludes only LF, while its multiline '^' and '$'
+    ' break on all four ECMAScript line terminators (both verified against the
+    ' COM engine). ECMAScript excludes all four from '.' too, so this is a
+    ' deliberate deviation for drop-in compatibility; .NET, Python and PCRE also
+    ' exclude only LF. The anchors keep using UnicodeIsLineTerminator, which
+    ' already matches VBScript.
+    ' ! Must return False for negative values, as ENDOFINPUT is represented by -1.
+    Private Function UnicodeIsDotLineTerminator(ByVal codepoint As Long) As Boolean
+        UnicodeIsDotLineTerminator = (codepoint = &HA&)
+    End Function
+    '<<< PATCH 11 dot-lineterminator
 
     Private Sub InitializeUnicodeCanonLookupTable(ByRef t() As Long)
         ' Array of integers would be sufficient
@@ -3452,7 +3460,6 @@ Private Module StaticRegex
     End Function
     '<<< PATCH 02
 
-
     Private Function DfsMatch( _
         ByRef outCaptures As CapturesTy, _
         ByRef bytecode() As Long, _
@@ -3924,13 +3931,17 @@ Private Module StaticRegex
                     ' DUK_DDD(DUK_DDDPRINT("char match, c1=%ld, c2=%ld", (long) c1, (long) c2));
                     If c1 <> c2 Then GoTo ContinueLoopFail
                     GoTo ContinueLoopSuccess
+                    
                 Case REOP_DOT
                     pcLandmark = pc - 1
                     c1 = GetInputCharCode(inputStr, sp, spDelta)
                     If c1 < 0 Then GoTo ContinueLoopFail
                     If op - (dotAll And MODIFIER_S_WRITE) And MODIFIER_S_ACTIVE Then GoTo ContinueLoopSuccess
-                    If UnicodeIsLineTerminator(c1) Then GoTo ContinueLoopFail
+                    '>>> PATCH 11 dot-lineterminator: VBScript parity for '.'
+                    If UnicodeIsDotLineTerminator(c1) Then GoTo ContinueLoopFail
+                    '<<< PATCH 11
                     GoTo ContinueLoopSuccess
+                    
                 Case REOP_RANGES, REOP_INVRANGES
                     pcLandmark = pc - 1
                     n = GetBc(bytecode, pc) ' assert: >= 1
@@ -3982,20 +3993,6 @@ Private Module StaticRegex
                     '  canonicalization does not affect the result of IsWordChar()
                     '  (which depends on Unicode characters never canonicalizing
                     '  into ASCII characters) so this does not matter.
-                    /*
-                    If sp <= 0 Then
-                        b1 = False  ' not a wordchar
-                    Else
-                        c1 = PeekInputCharCode(inputStr, sp - spDelta)
-                        b1 = UnicodeReIsWordchar(c1)
-                    End If
-                    If sp > Len(inputStr) Then
-                        b2 = False ' not a wordchar
-                    Else
-                        c1 = PeekInputCharCode(inputStr, sp)
-                        b2 = UnicodeReIsWordchar(c1)
-                    End If
-                    */
                     '>>> PATCH 09 lookbehind-wordboundary: index off the boundary, not raw sp.
                     ' Inside a lookbehind sp is one less than the boundary position, so the
                     ' raw-sp guards below fired at boundaries 0 and 1. bPos is the boundary;
@@ -4216,9 +4213,17 @@ Private Module StaticRegex
             ' DUK_WO_NORETURN(return -1;);
     End Function
 
+    '>>> PATCH 10 replace-dollar-parity: VBScript / ECMAScript GetSubstitution behaviour.
+    ' A '$' that does not start a known substitution item is copied as literal text
+    ' instead of raising. Numbered references read at most two digits and fall back to
+    ' one, then to literal, exactly as ECMAScript does, so '$100' with 2 groups is
+    ' group 1 followed by "00" rather than an empty string. '$<name>' is our extension:
+    ' it is literal when the pattern declares no named groups at all.
     Private Sub ParseFormatString(ByRef parsedFormat As ArrayBuffer, ByRef formatString As String, ByRef bytecode() As Long, ByRef pattern As String)
         Dim curPos As Long, lastPos As Long, c As Long, formatStringLen As Long, num As Long, substrLen As Long, identifierId As Long
-        
+        Dim d1 As Long, c2 As Long, tmpNum As Long, tmpPos As Long, mCaps As Long
+        Dim isLiteral As Boolean
+
         Const UNICODE_DOLLAR As Long = 36
         Const UNICODE_AMP As Long = 38
         Const UNICODE_SQUOTE As Long = 39
@@ -4227,15 +4232,17 @@ Private Module StaticRegex
         Const UNICODE_LT As Long = 60
         Const UNICODE_BACKTICK As Long = 96
         Const UNICODE_TILDE As Long = 126
-        
-        
+
+        ' number of numbered capture groups in the pattern (same derivation as MatchNext)
+        mCaps = (bytecode(BYTECODE_IDX_MAX_PROPER_CAPTURE_SLOT) + 1) \ 2 - 1
+
         formatStringLen = Len(formatString)
         curPos = 1
         lastPos = 1
         Do
             curPos = InStr(curPos, formatString, "$", vbBinaryCompare)
             If curPos = 0 Then Exit Do
-            If curPos = formatStringLen Then GoTo InvalidReplacementString
+            If curPos = formatStringLen Then Exit Do   ' trailing '$' is literal
             curPos = curPos + 1
             c = AscW(Mid$(formatString, curPos, 1))
             If c = UNICODE_DOLLAR Then
@@ -4248,6 +4255,7 @@ Private Module StaticRegex
             Else
                 substrLen = curPos - lastPos - 1
                 If substrLen > 0 Then AppendThree parsedFormat, REPL_SUBSTR, lastPos, substrLen
+                isLiteral = False
                 Select Case c
                 Case UNICODE_AMP
                     AppendLong parsedFormat, REPL_ACTUAL
@@ -4256,56 +4264,69 @@ Private Module StaticRegex
                     AppendLong parsedFormat, REPL_SUFFIX
                     curPos = curPos + 1
                 Case UNICODE_LT
-                    If curPos = formatStringLen Then GoTo InvalidReplacementString
-                    lastPos = curPos + 1
-                    curPos = InStr(lastPos, formatString, ">", vbBinaryCompare)
-                    If curPos = lastPos Then GoTo InvalidReplacementString ' empty identifier
-                    
-                    identifierId = GetIdentifierId(bytecode, pattern, Mid$(formatString, lastPos, curPos - lastPos))
-                    If identifierId >= 0 Then AppendTwo parsedFormat, REPL_NAMED, identifierId
-
-                    curPos = curPos + 1
+                    ' extension. VBScript has no named groups, so when the pattern
+                    ' declares none, '$<' is ordinary text.
+                    If bytecode(BYTECODE_IDX_N_IDENTIFIERS) = 0 Then
+                        isLiteral = True
+                    Else
+                        tmpPos = InStr(curPos + 1, formatString, ">", vbBinaryCompare)
+                        If tmpPos = 0 Or tmpPos = curPos + 1 Then
+                            isLiteral = True       ' no closing '>', or empty name
+                        Else
+                            identifierId = GetIdentifierId(bytecode, pattern, Mid$(formatString, curPos + 1, tmpPos - curPos - 1))
+                            ' unknown name -> empty string (ECMAScript), nothing appended
+                            If identifierId >= 0 Then AppendTwo parsedFormat, REPL_NAMED, identifierId
+                            curPos = tmpPos + 1
+                        End If
+                    End If
                 Case UNICODE_BACKTICK
                     AppendLong parsedFormat, REPL_PREFIX
                     curPos = curPos + 1
                 Case UNICODE_TILDE
-                    ' ignore
+                    ' extension: dropped. Delete this arm for 100% VBScript parity.
                     curPos = curPos + 1
                 Case Else
-                    ' Todo: Check whether we can merge this with parsing a number within a regex
-                    If c < UNICODE_DIGIT_0 Then GoTo InvalidReplacementString
-                    If c > UNICODE_DIGIT_9 Then GoTo InvalidReplacementString
-                    num = 0
-                    Do
-                        If num > LONG_MAX_DIV_10 Then GoTo InvalidReplacementString
-                        
-                        num = 10 * num
-                        c = c - UNICODE_DIGIT_0
-                        
-                        If num > LONG_MAX - c Then GoTo InvalidReplacementString
-                        
-                        num = num + c
-                        
-                        curPos = curPos + 1
-                        If curPos > formatStringLen Then Exit Do
-                        c = AscW(Mid$(formatString, curPos, 1))
-                        If c < UNICODE_DIGIT_0 Then Exit Do
-                        If c > UNICODE_DIGIT_9 Then Exit Do
-                    Loop
-                    AppendTwo parsedFormat, REPL_NUMBERED, num
+                    If c < UNICODE_DIGIT_0 Or c > UNICODE_DIGIT_9 Then
+                        isLiteral = True
+                    Else
+                        d1 = c - UNICODE_DIGIT_0
+                        num = 0
+                        ' prefer a two-digit group number when one exists
+                        If curPos < formatStringLen Then
+                            c2 = AscW(Mid$(formatString, curPos + 1, 1))
+                            If c2 >= UNICODE_DIGIT_0 And c2 <= UNICODE_DIGIT_9 Then
+                                tmpNum = 10 * d1 + (c2 - UNICODE_DIGIT_0)
+                                If tmpNum >= 1 And tmpNum <= mCaps Then
+                                    num = tmpNum
+                                    curPos = curPos + 2
+                                End If
+                            End If
+                        End If
+                        ' else a single-digit group number
+                        If num = 0 Then
+                            If d1 >= 1 And d1 <= mCaps Then
+                                num = d1
+                                curPos = curPos + 1
+                            End If
+                        End If
+                        If num = 0 Then
+                            isLiteral = True       ' no such group -> literal '$'
+                        Else
+                            AppendTwo parsedFormat, REPL_NUMBERED, num
+                        End If
+                    End If
                 End Select
+                ' curPos still points just past the '$', so curPos - 1 is the '$' itself
+                If isLiteral Then AppendThree parsedFormat, REPL_SUBSTR, curPos - 1, 1
             End If
             lastPos = curPos
         Loop
-        
+
         substrLen = formatStringLen + 1 - lastPos
         If substrLen > 0 Then AppendThree parsedFormat, REPL_SUBSTR, lastPos, substrLen
         AppendLong parsedFormat, REPL_END
-        
-        Exit Sub
-    InvalidReplacementString:
-        Err.Raise REGEX_ERR_INVALID_REPLACEMENT_STRING
     End Sub
+    '<<< PATCH 10 replace-dollar-parity
 
     Private Sub AppendFormatted( _
         ByRef sb As StaticStringBuilder, _
