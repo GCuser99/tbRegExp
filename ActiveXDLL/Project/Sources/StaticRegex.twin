@@ -69,6 +69,8 @@ Private Module StaticRegex
     ' PATCH 10 - Replace $ Parity with VBScript
     '
     ' PATCH 11 - dot-lineterminator: VBScript parity for '.' wrt to vbCr which is accepted
+    '
+    ' PATCH 12 - Zero-width matches being reported twice when the engine had to skip forward to reach them
     ' ==========================================================================
     Option Private Module
     Option Explicit
@@ -4505,7 +4507,20 @@ Private Module StaticRegex
             dotAll:=matcherState.dotAll _
         )
         
-        matcherState.current = (r - (oldCurrent = r)) Or matcherState.localMatch
+        '>>> PATCH 12 empty-match-dup: advance past a match that consumed nothing.
+        ' The old test was (oldCurrent = r) - "did the position move" - which
+        ' misses a zero-width match the engine had to skip forward to find, and
+        ' reports it twice. The right test is whether the match consumed
+        ' anything. The r = -1 guard matters: entireMatch is stale after a
+        ' failed match, and folding this into the one-liner could yield
+        ' current = 0 instead of the -1 end sentinel, which never terminates.
+        If r = -1 Then
+            matcherState.current = -1
+        Else
+            matcherState.current = (r - (matcherState.captures.entireMatch.Length = 0)) _
+                                   Or matcherState.localMatch
+        End If
+        '<<< PATCH 12 empty-match-dup
         MatchNext = r <> -1
     End Function
     '>>> PATCH 04

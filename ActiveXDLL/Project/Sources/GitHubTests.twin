@@ -417,6 +417,64 @@ Sub TestSurface()
     re.Pattern = "(?<year_1>\d{4})"              ' letters/digits/underscore names are OK
     Debug.Assert re.IsValid = True
     Debug.Assert re.Execute("2026")(0).SubMatches("year_1") = "2026"
+    
+    '------------- zero-width matches are not reported twice -------------
+    ' A pattern that matches empty only at some positions forces the engine
+    ' to skip to reach them. Before the fix, every skipped-to empty match
+    ' was reported twice.
+    re.Global = True: reCom.Global = True
+    testStr = "a" & vbLf & "b"
+
+    re.MultiLine = True: reCom.MultiLine = True
+    re.Pattern = "^": reCom.Pattern = re.Pattern
+    Debug.Assert re.Execute(testStr).Count = reCom.Execute(testStr).Count   ' 2
+    Debug.Assert re.Replace(testStr, "X") = reCom.Replace(testStr, "X")
+
+    re.Pattern = "$": reCom.Pattern = re.Pattern
+    Debug.Assert re.Execute(testStr).Count = reCom.Execute(testStr).Count
+    Debug.Assert re.Replace(testStr, "X") = reCom.Replace(testStr, "X")
+    re.MultiLine = False: reCom.MultiLine = False
+
+    ' plain '$' - no MultiLine - is affected too: the engine still has to
+    ' skip from the start of the string to the end to reach it
+    testStr = "ab"
+    re.Pattern = "$": reCom.Pattern = re.Pattern
+    Debug.Assert re.Execute(testStr).Count = reCom.Execute(testStr).Count   ' 1
+    Debug.Assert re.Replace(testStr, "X") = reCom.Replace(testStr, "X")     ' "abX"
+
+    ' word boundaries are zero-width and sparse - same shape of bug
+    testStr = "ab cd"
+    re.Pattern = "\b": reCom.Pattern = re.Pattern
+    Debug.Assert re.Execute(testStr).Count = reCom.Execute(testStr).Count   ' 4, was 6
+    Debug.Assert re.Replace(testStr, "|") = reCom.Replace(testStr, "|")
+
+    ' a lookahead on its own is zero-width and sparse (COM supports these)
+    testStr = "ab"
+    re.Pattern = "(?=b)": reCom.Pattern = re.Pattern
+    Debug.Assert re.Execute(testStr).Count = reCom.Execute(testStr).Count   ' 1, was 2
+    Debug.Assert re.Replace(testStr, "X") = reCom.Replace(testStr, "X")     ' "aXb"
+
+    ' lookbehind is beyond COM, so assert the literal
+    re.Pattern = "(?<=a)"
+    Debug.Assert re.Execute(testStr).Count = 1
+    Debug.Assert re.Replace(testStr, "X") = "aXb"
+
+    ' Split gained an extra empty element per duplicated match (beyond COM)
+    re.Pattern = "\b"
+    Set parts = re.Split("ab cd")
+    Debug.Assert parts.Count = 5                       ' was 7
+    Debug.Assert parts(1) = ""
+    Debug.Assert parts(2) = "ab"
+    Debug.Assert parts(3) = " "
+    Debug.Assert parts(4) = "cd"
+    Debug.Assert parts(5) = ""
+
+    ' a pattern that matches empty EVERYWHERE never skips, so it was always
+    ' correct - pinned here so the fix is not blamed if it ever changes
+    re.Pattern = "": reCom.Pattern = re.Pattern
+    Debug.Assert re.Execute("abc").Count = reCom.Execute("abc").Count
+    re.Global = False: reCom.Global = False
+    
 
     Debug.Print "testSurface: all checks passed"
 End Sub

@@ -1,5 +1,9 @@
 # Change Log
 
+[v1.6.0.0, 12 Oct 2026]
+ - Fixed zero-width matches being reported twice when the engine had to skip forward to reach them [@KubaO, tbDocs]
+   - affected Execute, Replace and Split with patterns that match empty at only some positions - multiline "^" and "$", "\b", and similar
+
 [v1.5.0.0, 12 Oct 2026]
 
  - Fixed VBScript compatibility for '.' wrt to vbCr line terminator which should be accepted [@Viorel, GitHub]
