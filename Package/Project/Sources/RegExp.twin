@@ -362,6 +362,8 @@ CompileFailed:
             DescribeRegexError = "Invalid capture-group name. Names must start with a letter or underscore, then contain only letters, digits, or underscores (and must not start with a digit)."
         Case 14  ' INVALID_MODIFIER
             DescribeRegexError = "Invalid inline modifier: a malformed or repeated '(?i)'/'(?m)'/'(?s)' flag group."
+        Case 15  ' INVALID_BACKREFERENCE
+            DescribeRegexError = "Backreference to a capture group that does not exist (e.g. '\2' in a pattern with one group). Note that VBScript's RegExp would instead read this as a legacy octal escape."
         Case 20  ' INTERNAL_LOGIC_ERR
             DescribeRegexError = "Internal engine error (this should not happen — please report the pattern)."
         Case 30  ' INVALID_FLAG_ERR

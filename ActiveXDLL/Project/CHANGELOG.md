@@ -1,6 +1,18 @@
 # Change Log
 
+[v1.7.0.0, 12 Oct 2026]
+
+- Pattern coverage: closed the escape gaps reported by RegExpress [@Viorel, GitHub]
+   - "[\f]" is a form feed; it used to match the letter "f"
+   - "\cX" outside a character class gives the right control character ("\cJ" is vbLf); it was wrong for every letter
+   - "\CX" is a control escape too, since VBScript's "\c" is case-insensitive
+   - an unrecognised letter escape is now the letter itself, as in VBScript ("\q" matches "q"), instead of raising
+   - Fixed IsValid reporting True for an out-of-range backreference ("\101", or "\2" with one group); these are now rejected when the Pattern is set, instead of raising from Test/Execute
+   - legacy octal escapes work outside a character class too: "\101" is "A" when the pattern has no group 101, as in VBScript; an in-range backreference like "(a)\1" still wins
+   - "\012"-style octal, and "\0" no longer swallows the character after it ("\0a")
+   
 [v1.6.0.0, 12 Oct 2026]
+
  - Fixed zero-width matches being reported twice when the engine had to skip forward to reach them [@KubaO, tbDocs]
    - affected Execute, Replace and Split with patterns that match empty at only some positions - multiline "^" and "$", "\b", and similar
 
