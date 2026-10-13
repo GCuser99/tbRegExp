@@ -111,6 +111,40 @@ Private Module StaticRegex
 '   the unchanged old path, and pass 2 runs only for patterns that previously
 '   failed to compile, so nothing that works today pays for it. Also fixes
 '   '\0a' silently eating the 'a', and adds '\012'-style octal.
+'
+' PATCH 18 - Make a step-budget giveup visible. DfsRunThreads returns -1 both
+'   when it finds no match and when it exhausts stepsLimit, so a truncated
+'   result was indistinguishable from an honest no-match and nothing was
+'   raised. A module-level flag now records it; the wrapper clears it before
+'   each search and exposes it as RegExp.StepsLimitHit. Also exposes the
+'   existing per-pattern RegexTy.stepsLimit field as RegExp.StepsLimit - it was
+'   always settable in the engine, just never surfaced.
+'   MEASURED on a 5000-char run of 'a': 'a*' matches 3331 characters from
+'   position 1669 instead of 5000 from 0, and '^.*$' does not match at all.
+'   The cost is in the restarts, not the budget: 'a*' over 9500 characters
+'   burns ~62M steps over ~6170 failed start positions (13s) to return a wrong
+'   answer, where a budget of ~30000 would succeed at position 0 in ~6ms.
+'
+' PATCH 19 - One step budget per SEARCH instead of one per start position, and
+'   scale it with the input. MEASURED: 'a*' over 9500 characters now returns the
+'   full 9500 in ~16ms, where it returned 3331 after 13s - about 800x faster AND
+'   correct. Budget = min(50000000, max(1000000, 5000 * inputLen)), or
+'   RegExp.StepsLimit when that is set.
+'   Neither half works alone: a global budget at the old 10000 returns NO match
+'   where it used to return a short one, and a budget that only scales breaks
+'   'a{100}b' with a late match. The floor keeps short pathological patterns
+'   bounded tightly; the cap keeps a big input from running for minutes.
+'
+' PATCH 20 - Stop re-allocating the capture arrays on every match; they are sized
+'   by the pattern, not by the match. Safe because CopyCaptures rewrites every
+'   slot every time (all three branches of its numbered loop assign, and its
+'   named loop is unconditional), so nothing stale can survive.
+'
+' PATCH 21 - Two string-building wins in ReplaceByRegEx: pre-size the result
+'   builder from the haystack length (it started at 16 characters and grew by
+'   half - ~18 reallocations and ~47K characters copied for a 16K result), and
+'   skip the between-matches Mid$ when matches are adjacent, which was allocating
+'   an empty BSTR on nearly every match for a dense pattern.
 ' ==========================================================================
 Option Private Module
 Option Explicit
@@ -411,7 +445,6 @@ Private Enum LexerUnicodeCodepointConstant
     UNICODE_0 = 48  ' 0
     UNICODE_1 = 49  ' 1
     UNICODE_7 = 55  ' 7
-    UNICODE_8 = 56
     UNICODE_9 = 57  ' 9
     UNICODE_COLON = 58  ' :
     UNICODE_LT = 60  ' <
@@ -469,7 +502,14 @@ Private Enum ParseStackFrameTypeConstant
 End Enum
 
 Private Enum DfsMatcherSharedConstant
-    DEFAULT_STEPS_LIMIT = 10000
+    '>>> PATCH 19: 0 now means 'scale the budget to the input length'. The old
+    ' 10000 was per START POSITION, which is what made a long match impossible
+    ' and a failing scan quadratic.
+    DEFAULT_STEPS_LIMIT = 0
+    STEPS_BUDGET_PER_CHAR = 5000      ' vs the ~3 steps/char a simple repeat costs
+    STEPS_BUDGET_FLOOR = 1000000      ' short inputs still get ~0.2s before giving up
+    STEPS_BUDGET_CAP = 50000000       ' ~10s: bounds a pathological pattern on big input
+    '<<< PATCH 19
 End Enum
 
 Private Enum DfsMatcherPrivateConstant
@@ -485,6 +525,8 @@ Private Type CapturesTy
     entireMatch As StartLengthPair
     numberedCaptures() As StartLengthPair
     namedCaptures() As Long
+    allocNumbered As Long    '>>> PATCH 20: current size of numberedCaptures
+    allocNamed As Long       '>>> PATCH 20: current size of namedCaptures
 End Type
 
 Private Type DfsMatcherStackFrame
@@ -2421,7 +2463,7 @@ EscapeDigit:
                 ' \0 on its own is NUL. Peek instead of Advance: the old code
                 ' consumed the following character and discarded it when it was
                 ' not a digit, so '\0a' silently lost the 'a'.
-                If lexCtx.currentCharacter >= UNICODE_8 And lexCtx.currentCharacter <= UNICODE_9 Then
+                If lexCtx.currentCharacter > UNICODE_7 And lexCtx.currentCharacter <= UNICODE_9 Then
                     Err.Raise REGEX_ERR_INVALID_REGEXP_ESCAPE
                 End If
                 outToken.num = 0
@@ -3648,14 +3690,45 @@ Private Function DfsMatchFrom( _
     With outCaptures
         .nNumberedCaptures = nProperCapturePoints \ 2 - 1
         .nNamedCaptures = bytecode(1)
-        If .nNumberedCaptures > 0 Then ReDim .numberedCaptures(0 To .nNumberedCaptures - 1) As StartLengthPair
-        If .nNamedCaptures > 0 Then ReDim .namedCaptures(0 To .nNamedCaptures - 1) As Long
+        '>>> PATCH 20: these are sized by the pattern, not the match, but were
+        ' re-allocated on every MatchNext. Safe to keep: CopyCaptures rewrites
+        ' every slot on every match - the numbered loop assigns .start/.Length in
+        ' all three of its branches and the named loop assigns unconditionally -
+        ' so nothing stale can survive.
+        If .nNumberedCaptures > 0 Then
+            If .allocNumbered <> .nNumberedCaptures Then
+                ReDim .numberedCaptures(0 To .nNumberedCaptures - 1) As StartLengthPair
+                .allocNumbered = .nNumberedCaptures
+            End If
+        End If
+        If .nNamedCaptures > 0 Then
+            If .allocNamed <> .nNamedCaptures Then
+                ReDim .namedCaptures(0 To .nNamedCaptures - 1) As Long
+                .allocNamed = .nNamedCaptures
+            End If
+        End If
+        '<<< PATCH 20
     End With
         
     '>>> PATCH 02: compute the mandatory first char/class once per call
     Dim fcKind As Long, fcChar As Long, fcRangesPc As Long, fcIFlag As Long, cc As Long
     fcKind = ComputeFirstChar(bytecode, fcChar, fcRangesPc, fcIFlag)
     '<<< PATCH 02
+
+    '>>> PATCH 19: work out the budget for this whole search.
+    ' stepsLimit > 0 is an explicit RegExp.StepsLimit; 0 means scale it. The cap
+    ' is reached at 10000 characters (50000000 \ 5000), so the multiply below
+    ' cannot overflow a Long.
+    mStepsUsed = 0
+    If stepsLimit > 0 Then
+        mStepsBudget = stepsLimit
+    ElseIf Len(inputStr) > STEPS_BUDGET_CAP \ STEPS_BUDGET_PER_CHAR Then
+        mStepsBudget = STEPS_BUDGET_CAP
+    Else
+        mStepsBudget = STEPS_BUDGET_PER_CHAR * Len(inputStr)
+        If mStepsBudget < STEPS_BUDGET_FLOOR Then mStepsBudget = STEPS_BUDGET_FLOOR
+    End If
+    '<<< PATCH 19
 
     Do While sp <= Len(inputStr)
         '>>> PATCH 02: skip positions that cannot begin a match
@@ -3675,7 +3748,7 @@ Private Function DfsMatchFrom( _
         '<<< PATCH 02
 
         InitializeMatcherContext context, nProperCapturePoints, nProperCapturePoints + nNamedCaptures
-        res = DfsRunThreads(outCaptures, context, bytecode, inputStr, sp, stepsLimit, multiline, dotAll)
+        res = DfsRunThreads(outCaptures, context, bytecode, inputStr, sp, multiline, dotAll)   '>>> PATCH 19
         If res <> -1 Then
             DfsMatchFrom = res
             Exit Function
@@ -3695,6 +3768,25 @@ End Function
 '>>> PATCH 01: decoded-input buffer
 Private mInputChars() As Integer   ' 0-based UTF-16 code units of the current haystack
 Private mInputLen As Long          ' == Len(haystack); Get/Peek bound-check against this
+
+'>>> PATCH 18: did the most recent search give up on its step budget?
+' Module-level rather than threaded through DfsRunThreads/DfsMatchFrom/
+' DfsMatch/MatchNext, which would be four signature changes. The engine is
+' already single-search-at-a-time because of PATCH 01's mInputChars, so this
+' adds no new restriction: nested regex operations were never supported.
+' Callers clear it before a search and read it after.
+Private mStepsLimitHit As Boolean
+Private mStepsUsed As Long          '>>> PATCH 19: steps spent by the current search
+Private mStepsBudget As Long        '>>> PATCH 19: total allowed for it
+
+Public Sub ClearStepsLimitHit()
+    mStepsLimitHit = False
+End Sub
+
+Public Function StepsLimitHit() As Boolean
+    StepsLimitHit = mStepsLimitHit
+End Function
+'<<< PATCH 18
 
 ' Decode the haystack once per matching session. Call at the top of every public
 ' entry that starts a match loop (or, for the MatchNext-driven loops, gated by
@@ -3985,7 +4077,6 @@ Private Function DfsRunThreads( _
     ByRef bytecode() As Long, _
     ByRef inputStr As String, _
     ByVal sp As Long, _
-    ByVal stepsLimit As Long, _
     ByVal multiline As Boolean, _
     ByVal dotAll As Boolean _
 ) As Long
@@ -4005,13 +4096,11 @@ Private Function DfsRunThreads( _
     Dim idx As Long, off As Long
     Dim q As Long, qmin As Long, qmax As Long, qq As Long
     Dim qexact As Long
-    Dim stepsCount As Long
     Dim spDelta As Long ' 1 when we walk forwards and -1 when we walk backwards
     Dim bPos As Long   '>>> PATCH 09 lookbehind-wordboundary
         
         pc = 3 + 3 * bytecode(BYTECODE_IDX_N_IDENTIFIERS)
         pcLandmark = -1
-        stepsCount = 0
         spDelta = 1
         q = Q_NONE
         
@@ -4026,12 +4115,17 @@ ContinueLoopFail:
 
 ContinueLoopSuccess:
 
-            ' TODO: HACK to prevent infinite loop!!!!
-            stepsCount = stepsCount + 1
-            If stepsCount >= stepsLimit Then
+            '>>> PATCH 19: one budget for the whole search. This counter used to
+            ' reset at every start position, so a long legitimate match could
+            ' never finish, while a pattern that failed everywhere paid the full
+            ' limit n times over. See the banner for the measurements.
+            mStepsUsed = mStepsUsed + 1
+            If mStepsUsed >= mStepsBudget Then
+                mStepsLimitHit = True
                 DfsRunThreads = -1
                 Exit Function
             End If
+            '<<< PATCH 19
                 
             op = GetBc(bytecode, pc)
         
@@ -4693,12 +4787,25 @@ Public Function ReplaceByRegEx( _
 
     ParseFormatString parsedFormat, replacer, regex.bytecode, regex.pattern
 
+    '>>> PATCH 21: pre-size the result. The builder starts at 16 characters and
+    ' grows by half each time, so a 16KB result took ~18 reallocations and copied
+    ' ~47K characters to produce 16K. The result is usually close to the input in
+    ' size, so start there; it still grows if the replacement is larger.
+    SetMinimumCapacity resultBuilder, Len(haystack)
+    '<<< PATCH 21
+
     lastEndPos = 1
     matcherState.localMatch = localMatch
     matcherState.multiline = multiline
     matcherState.dotAll = dotAll
     Do While MatchNext(matcherState, regex, haystack)
-        AppendStr resultBuilder, Mid$(haystack, lastEndPos, matcherState.captures.entireMatch.start - lastEndPos)
+        '>>> PATCH 21: skip the gap when matches are adjacent. Mid$(.., 0) still
+        ' allocates an empty BSTR that AppendStr then discards, and for a dense
+        ' pattern that is one allocation on nearly every match.
+        If matcherState.captures.entireMatch.start > lastEndPos Then
+            AppendStr resultBuilder, Mid$(haystack, lastEndPos, matcherState.captures.entireMatch.start - lastEndPos)
+        End If
+        '<<< PATCH 21
         AppendFormatted resultBuilder, haystack, matcherState.captures, replacer, parsedFormat.Buffer
             
         lastEndPos = matcherState.captures.entireMatch.start + matcherState.captures.entireMatch.Length

@@ -1,5 +1,19 @@
 # Change Log
 
+[v1.8.0.0, 13 Oct 2026]
+
+ - Long matches are no longer truncated. The engine’s step limit was a fixed 10,000. The budget now scales
+   with the length of the string being searched, so a match is bounded by the input rather than by a constant.
+ - Large searches are much faster. That same fixed limit was also a performance bug — a failing scan restarted
+   at every position and burned the full allowance at each one. A 9,500-character search that took ~13 seconds
+   now takes ~0.02 seconds.
+ - New SearchAborted property (read-only). True if the last Test, Execute, Replace or Split gave up before 
+   finishing its search; results may be truncated or missing, and nothing is raised. Only a catastrophically
+   backtracking pattern such as (a+)+b can reach it, and because the budget is capped such a pattern now fails
+   in seconds instead of hanging the host the way VBScript.RegExp does.
+ - Replace allocates its result buffer up front and skips an empty copy between adjacent matches (~3% faster);
+   capture arrays are reused across the matches of a call rather than reallocated per match.
+
 [v1.7.0.0, 12 Oct 2026]
 
 - Pattern coverage: closed the escape gaps reported by RegExpress [@Viorel, GitHub]

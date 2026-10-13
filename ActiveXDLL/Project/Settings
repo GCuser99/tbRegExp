@@ -39,7 +39,7 @@
         "project.startupObject": "(none)",
         "project.useProjectIdForTypeLibraryId": true,
         "project.versionBuild": 0,
-        "project.versionMinor": 7,
+        "project.versionMinor": 8,
         "project.versionRevision": 0,
         "project.warnings": {
                 "errors": [],

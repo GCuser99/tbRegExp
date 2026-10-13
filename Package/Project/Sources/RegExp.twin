@@ -2,35 +2,32 @@
 ' See https://github.com/GCuser99/tbRegExp for more info.
 ' ==========================================================================
 ' ==========================================================================
-' WRAPPER — RegExp / Match / MatchCollection / SubMatches (+ modRegexShared)
-' Drop-in replacement for VBScript.RegExp. Engine lives in StaticRegex.twin.
+'  tbRegExp - a drop-in replacement for VBScript.RegExp.
 '
-' Lazy / shared-empty SubMatches. Match doesn't allocate a
-'   SubMatches + Collection per match; group-less matches share one empty
-'   instance (modRegexShared.EmptySubMatches); grouped matches build via
-'   Friend AddSubMatch.
+'  Classes: RegExp, Match, MatchCollection, SubMatches. Pure twinBASIC, with
+'  no dependency beyond the StaticRegex module in this package, which holds
+'  the matching engine - sihlfall's excellent vba-regex, with fixes:
+'  https://github.com/sihlfall/vba-regex
 '
-' Array-backed SubMatches (mVals/mKeys, not a Collection); the
-'   enumeration Collection is built lazily for For Each only.
+'  Code written against VBScript.RegExp should run unchanged, quirks included:
+'  where the two engines could differ, this one follows VBScript rather than
+'  ECMAScript. It also offers what VBScript does not - DotAll, Split, named
+'  groups, lookbehind, inline modifiers, $<name> replacement, and checking a
+'  pattern without raising.
 '
-' Uses Internal_ prefix for Friend procedures; tB leaks Friend across the package boundary
+'  One behaviour VBScript has no equivalent for: a search is given a step
+'  budget that scales with the length of the string, so a pattern that
+'  backtracks catastrophically gives up after a few seconds rather than
+'  hanging. The result is then a "no match" that is not an answer, and
+'  SearchAborted is True.
+'
+'  Contact: https://github.com/GCUser99
 ' ==========================================================================
 [PredeclaredId(False)]
 [Hidden(False)]
 [Description("This class exposes a drop-in replacement for VBSript's regular expressions object model.")]
 Public Class RegExp
     Option Explicit
-    ' ==========================================================================
-    ' RegExp
-    '
-    ' A drop-in replacement for VBSript's regular expressions object model
-    ' by wrapping sihlfall's excellent vba-regex (https://github.com/sihlfall/vba-regex)
-    '
-    ' The dependency for this class is the StaticRegex module. For how to obtain the
-    ' latest copy, please see following link:
-    ' https://github.com/sihlfall/vba-regex/tree/master/aio
-    '
-    ' Contact Info: https://github.com/GCUser99
     ' ==========================================================================
     ' MIT License
     '
@@ -65,6 +62,7 @@ Public Class RegExp
     Private mIsValid As Boolean
     Private mLastError As String
     Private mLastErrNumber As Long
+    Private mSearchAborted As Boolean   '>>> PATCH 18: per-instance, see SearchAborted
 
     ' Named-capture map and capture count, cached per compiled Pattern. Both are
     ' pure functions of the bytecode, so they are computed once in EnsureCompiled
@@ -147,9 +145,11 @@ Public Class RegExp
         Dim i As Long
         Dim matchStart As Long, matchLength As Long
 
+        mSearchAborted = False                  '>>> PATCH 18
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
 
+        StaticRegex.ClearStepsLimitHit          '>>> PATCH 18
         StaticRegex.InitializeMatcherState matcherState, Not mGlobal, mMultiLine, mDotAll
 
         Set oMatches = New MatchCollection
@@ -204,28 +204,38 @@ Public Class RegExp
                 oMatches.Internal_Add oMatch
             End With
         Loop
+        mSearchAborted = StaticRegex.StepsLimitHit()    '>>> PATCH 18
         Set Execute = oMatches
     End Function
 
     [Description("Returns 'True' if Pattern finds a match in sourceString, otherwise returns 'False'.")]
     Public Function Test(ByVal sourceString As String) As Boolean
+        mSearchAborted = False                  '>>> PATCH 18
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
+        StaticRegex.ClearStepsLimitHit          '>>> PATCH 18
         Test = StaticRegex.Test(regex, sourceString, mMultiLine, mDotAll)
+        mSearchAborted = StaticRegex.StepsLimitHit()    '>>> PATCH 18
     End Function
 
     [Description("Replaces matches with replaceString and returns the String with replacements made.")]
     Public Function Replace(ByVal sourceString As String, ByVal replaceString As String) As String
+        mSearchAborted = False                  '>>> PATCH 18
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
+        StaticRegex.ClearStepsLimitHit          '>>> PATCH 18
         Replace = StaticRegex.ReplaceByRegEx(regex, replaceString, sourceString, Not mGlobal, mMultiLine, mDotAll)
+        mSearchAborted = StaticRegex.StepsLimitHit()    '>>> PATCH 18
     End Function
 
     [Description("Splits an input string into an array of substrings at the positions defined by a regular expression match. Needs Global Property set to 'True'.")]
     Public Function Split(ByVal sourceString As String) As Collection
+        mSearchAborted = False                  '>>> PATCH 18
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
+        StaticRegex.ClearStepsLimitHit          '>>> PATCH 18
         Set Split = StaticRegex.SplitByRegex(regex, sourceString, Not mGlobal, mMultiLine, mDotAll)
+        mSearchAborted = StaticRegex.StepsLimitHit()    '>>> PATCH 18
     End Function
 
     [Description("Returns True if the current Pattern compiles successfully; False if it is invalid. Does not raise.")]
@@ -245,6 +255,37 @@ Public Class RegExp
         EnsureCompiled
         LastErrorNumber = mLastErrNumber
     End Property
+
+    '>>> PATCH 18: the one thing the step budget has to surface.
+    '
+    ' There is deliberately NO public way to set the budget. "Steps" is a unit of
+    ' sihlfall's DFS matcher rather than a stable concept, so publishing it would
+    ' commit us to a number whose meaning changes if the matcher does; and since
+    ' the budget now scales itself with the input (PATCH 19 in StaticRegex), the
+    ' only thing a setter could achieve is to make it wrong again. RegexTy.stepsLimit
+    ' survives for anyone driving the StaticRegex module directly.
+    '
+    ' This flag is not optional, though. A budget that runs out reports "no match",
+    ' which is a silent wrong answer - and it is reachable on a 30-character string
+    ' given a pattern like "(a+)+b". VBScript.RegExp hangs on that same input, which
+    ' is worse but at least visible. This is how a caller tells the two apart.
+    '
+    ' SEARCH, not match: the budget is spent across the whole call, over every start
+    ' position tried, so with Global = True some matches may already have been found
+    ' and returned before the search gave up.
+    '
+    ' PER INSTANCE, not per module. StaticRegex.StepsLimitHit is a module-level flag
+    ' shared by every RegExp in the process, so reading it directly would let one
+    ' object's abort show up on another - including on a brand new one that has not
+    ' run anything yet. Each entry point therefore clears this field on the way in
+    ' (before EnsureCompiled, so a raise on an invalid pattern also leaves it False:
+    ' no search ran, so none was abandoned) and latches the engine flag into it on
+    ' the way out. What a caller reads is then only ever about calls on THIS object.
+    [Description("True if the most recent Test, Execute, Replace or Split on this object gave up before finishing its search. Results may be truncated or missing, and nothing is raised. In practice only a catastrophically backtracking pattern - nested quantifiers such as '(a+)+b' - can reach this.")]
+    Public Property Get SearchAborted() As Boolean
+        SearchAborted = mSearchAborted
+    End Property
+    '<<< PATCH 18
 
     ' Compiles the current Pattern once per Pattern/IgnoreCase change, trapping any engine
     ' error so validity can be queried without raising. Never raises. IgnoreCase is the only
@@ -279,7 +320,9 @@ CompileFailed:
     End Sub
 
     ' Walks the bytecode identifier map once per compiled Pattern and caches the
-    ' name -> identifier-id mapping as arrays. Also derives the numbered-capture count.
+    ' name -> identifier-id mapping as arrays. Replaces GetNamedCapturesInfo, which
+    ' built two Collections on every Execute call for data that cannot change
+    ' between calls. Also derives the numbered-capture count.
     '
     ' The identifier map is a red-black tree keyed by name, so mNamedCount is the
     ' number of DISTINCT names - a pattern with duplicate names has fewer entries
@@ -362,8 +405,6 @@ CompileFailed:
             DescribeRegexError = "Invalid capture-group name. Names must start with a letter or underscore, then contain only letters, digits, or underscores (and must not start with a digit)."
         Case 14  ' INVALID_MODIFIER
             DescribeRegexError = "Invalid inline modifier: a malformed or repeated '(?i)'/'(?m)'/'(?s)' flag group."
-        Case 15  ' INVALID_BACKREFERENCE
-            DescribeRegexError = "Backreference to a capture group that does not exist (e.g. '\2' in a pattern with one group). Note that VBScript's RegExp would instead read this as a legacy octal escape."
         Case 20  ' INTERNAL_LOGIC_ERR
             DescribeRegexError = "Internal engine error (this should not happen — please report the pattern)."
         Case 30  ' INVALID_FLAG_ERR
@@ -454,6 +495,14 @@ End Class
 Public Class MatchCollection
     Option Explicit
 
+    ' PHASE 2: array-backed storage. A Collection costs ~12us to create and
+    ' destroy, and Class_Initialize paid it on every Execute call whether or not
+    ' anything matched.
+    ' PHASE 3: the lazy enumeration Collection is gone too - For Each now gets a
+    ' real IEnumVARIANT (MatchCollectionEnum) reading mItems in place. Cheaper
+    ' here than for SubMatches (one Collection per enumeration, not per match),
+    ' but it matters most for the common small result set, where a 12us
+    ' allocation dwarfs a ~3us Execute.
     Private mItems() As Match
     Private mCount As Long
     Private mCap As Long
@@ -512,9 +561,11 @@ End Class
 Public Class SubMatches
     Option Explicit
 
-    ' Array-backed storage.
-    ' For Each  gets a real IEnumVARIANT (SubMatchesEnum) that reads mVals in
-    ' place.
+    ' Array-backed storage. PHASE 3: the lazy enumeration Collection is gone -
+    ' For Each now gets a real IEnumVARIANT (SubMatchesEnum) that reads mVals in
+    ' place. That Collection was allocated ONCE PER MATCH, and measured at ~112us
+    ' per match against ~4us for index access: a 28x penalty on idiomatic
+    ' For Each code. It was the last per-match allocation in the library.
     Private mVals() As String
     Private mKeys() As String       ' parallel to mVals; vbNullString for unnamed groups
     Private mCount As Long
@@ -597,6 +648,14 @@ End Module
 ' ==========================================================================
 '  IEnumVARIANT - For Each support without a throwaway Collection
 '
+'  Modelled on the CellsEnum pattern, which paid for the three traps already:
+'
+'   - Declared here, not taken from stdole. stdole's IEnumVARIANT counts items
+'     in unsigned 32-bit integers and twinBASIC has no unsigned 32-bit type, so
+'     the compiler reports {unsupported VT_UI4} and no handler can match. Same
+'     interface identifier with Long counts; QueryInterface matches on the
+'     identifier, so a caller asking for the real IEnumVARIANT gets this.
+'
 '   - For Each ends the loop ONLY on S_FALSE. It passes a NULL pointer for
 '     pCeltFetched and never reads it. A Next that returns S_OK having written
 '     nothing loops forever, so the address is tested before anything is
@@ -650,7 +709,8 @@ Private Class SubMatchesEnum
         Set mSrc = Nothing
     End Sub
 
-    Private Sub Next(ByVal celt As Long, ByRef rgVar As Variant, ByRef pCeltFetched As Long) Implements IEnumVARIANT.Next
+    Private Sub Next(ByVal celt As Long, ByRef rgVar As Variant, _
+                     ByRef pCeltFetched As Long) Implements IEnumVARIANT.Next
         Dim n As Long
         If celt > 0 Then
             If mPos < mCount Then
