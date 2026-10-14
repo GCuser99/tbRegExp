@@ -15,11 +15,11 @@
 '  groups, lookbehind, inline modifiers, $<name> replacement, and checking a
 '  pattern without raising.
 '
-'  One behaviour VBScript has no equivalent for: a search is given a step
-'  budget that scales with the length of the string, so a pattern that
-'  backtracks catastrophically gives up after a few seconds rather than
-'  hanging. The result is then a "no match" that is not an answer, and
-'  SearchAborted is True.
+'  One deliberate difference from VBScript: a search is given a step budget
+'  that scales with the square of the string's length, so a pattern that
+'  backtracks pathologically raises an error after a few seconds instead of
+'  freezing the host the way VBScript does. The error says what to try, and
+'  SearchStepLimit raises the ceiling if a search genuinely needs more.
 '
 '  Contact: https://github.com/GCUser99
 ' ==========================================================================
@@ -62,7 +62,7 @@ Public Class RegExp
     Private mIsValid As Boolean
     Private mLastError As String
     Private mLastErrNumber As Long
-    Private mSearchAborted As Boolean   '>>> PATCH 18: per-instance, see SearchAborted
+    Private mSearchStepLimit As Long    '>>> PATCH 26: 0 = automatic budget
 
     ' Named-capture map and capture count, cached per compiled Pattern. Both are
     ' pure functions of the bytecode, so they are computed once in EnsureCompiled
@@ -145,11 +145,9 @@ Public Class RegExp
         Dim i As Long
         Dim matchStart As Long, matchLength As Long
 
-        mSearchAborted = False                  '>>> PATCH 18
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
 
-        StaticRegex.ClearStepsLimitHit          '>>> PATCH 18
         StaticRegex.InitializeMatcherState matcherState, Not mGlobal, mMultiLine, mDotAll
 
         Set oMatches = New MatchCollection
@@ -204,38 +202,28 @@ Public Class RegExp
                 oMatches.Internal_Add oMatch
             End With
         Loop
-        mSearchAborted = StaticRegex.StepsLimitHit()    '>>> PATCH 18
         Set Execute = oMatches
     End Function
 
     [Description("Returns 'True' if Pattern finds a match in sourceString, otherwise returns 'False'.")]
     Public Function Test(ByVal sourceString As String) As Boolean
-        mSearchAborted = False                  '>>> PATCH 18
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
-        StaticRegex.ClearStepsLimitHit          '>>> PATCH 18
         Test = StaticRegex.Test(regex, sourceString, mMultiLine, mDotAll)
-        mSearchAborted = StaticRegex.StepsLimitHit()    '>>> PATCH 18
     End Function
 
     [Description("Replaces matches with replaceString and returns the String with replacements made.")]
     Public Function Replace(ByVal sourceString As String, ByVal replaceString As String) As String
-        mSearchAborted = False                  '>>> PATCH 18
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
-        StaticRegex.ClearStepsLimitHit          '>>> PATCH 18
         Replace = StaticRegex.ReplaceByRegEx(regex, replaceString, sourceString, Not mGlobal, mMultiLine, mDotAll)
-        mSearchAborted = StaticRegex.StepsLimitHit()    '>>> PATCH 18
     End Function
 
     [Description("Splits an input string into an array of substrings at the positions defined by a regular expression match. Needs Global Property set to 'True'.")]
     Public Function Split(ByVal sourceString As String) As Collection
-        mSearchAborted = False                  '>>> PATCH 18
         EnsureCompiled
         If Not mIsValid Then Err.Raise mLastErrNumber, "RegExp", mLastError
-        StaticRegex.ClearStepsLimitHit          '>>> PATCH 18
         Set Split = StaticRegex.SplitByRegex(regex, sourceString, Not mGlobal, mMultiLine, mDotAll)
-        mSearchAborted = StaticRegex.StepsLimitHit()    '>>> PATCH 18
     End Function
 
     [Description("Returns True if the current Pattern compiles successfully; False if it is invalid. Does not raise.")]
@@ -256,36 +244,47 @@ Public Class RegExp
         LastErrorNumber = mLastErrNumber
     End Property
 
-    '>>> PATCH 18: the one thing the step budget has to surface.
+    '>>> PATCH 26: the only knob the step budget needs.
     '
-    ' There is deliberately NO public way to set the budget. "Steps" is a unit of
-    ' sihlfall's DFS matcher rather than a stable concept, so publishing it would
-    ' commit us to a number whose meaning changes if the matcher does; and since
-    ' the budget now scales itself with the input (PATCH 19 in StaticRegex), the
-    ' only thing a setter could achieve is to make it wrong again. RegexTy.stepsLimit
-    ' survives for anyone driving the StaticRegex module directly.
+    ' The budget exists so that a pattern which backtracks pathologically fails
+    ' instead of hanging the host, which is the one place this library knowingly
+    ' departs from VBScript.RegExp - and the departure is the point, since
+    ' VBScript's alternative is to freeze. Exhausting it RAISES rather than
+    ' returning a value, so there is no SearchAborted flag any more: the flag only
+    ' existed to let a caller detect an answer the engine could not justify.
     '
-    ' This flag is not optional, though. A budget that runs out reports "no match",
-    ' which is a silent wrong answer - and it is reachable on a 30-character string
-    ' given a pattern like "(a+)+b". VBScript.RegExp hangs on that same input, which
-    ' is worse but at least visible. This is how a caller tells the two apart.
+    ' The automatic budget is not a single number - it is
+    '     min(100,000,000, max(1,000,000, 10 x length^2))
+    ' so a Get here can only honestly report what was SET. Returning an effective
+    ' value instead would break the round trip (set 0, read back 2,500,000), which
+    ' is the kind of property that makes an object model untrustworthy. The formula
+    ' is in the description so the IDE tooltip answers "what do I get by default".
     '
-    ' SEARCH, not match: the budget is spent across the whole call, over every start
-    ' position tried, so with Global = True some matches may already have been found
-    ' and returned before the search gave up.
-    '
-    ' PER INSTANCE, not per module. StaticRegex.StepsLimitHit is a module-level flag
-    ' shared by every RegExp in the process, so reading it directly would let one
-    ' object's abort show up on another - including on a brand new one that has not
-    ' run anything yet. Each entry point therefore clears this field on the way in
-    ' (before EnsureCompiled, so a raise on an invalid pattern also leaves it False:
-    ' no search ran, so none was abandoned) and latches the engine flag into it on
-    ' the way out. What a caller reads is then only ever about calls on THIS object.
-    [Description("True if the most recent Test, Execute, Replace or Split on this object gave up before finishing its search. Results may be truncated or missing, and nothing is raised. In practice only a catastrophically backtracking pattern - nested quantifiers such as '(a+)+b' - can reach this.")]
-    Public Property Get SearchAborted() As Boolean
-        SearchAborted = mSearchAborted
+    ' Raising this is the recourse for a quadratic pattern on a long input; the
+    ' abandonment message names the property and suggests a value. Nothing covers
+    ' a pattern whose cost grows faster than the square of the input, and the
+    ' message says so once a retry has demonstrated it.
+    [Description("Maximum matcher steps allowed for one Test, Execute, Replace or Split. 0 (the default) scales the budget automatically as min(100000000, max(1000000, 10 * length^2)), which no ordinary pattern reaches. Raise it only if a search was abandoned - the error message suggests a value. 'Steps' are an internal unit and approximate.")]
+    Public Property Let SearchStepLimit(ByVal pSearchStepLimit As Long)
+        If pSearchStepLimit < 0 Then
+            Err.Raise 5, "RegExp", "SearchStepLimit must be 0 (automatic) or a positive number of steps."
+        End If
+        mSearchStepLimit = pSearchStepLimit
+        ' stepsLimit is a field on RegexTy rather than a compile input, so an
+        ' already-compiled pattern takes the new value without recompiling.
+        If mCompileAttempted And mIsValid Then ApplySearchStepLimit
     End Property
-    '<<< PATCH 18
+    Public Property Get SearchStepLimit() As Long
+        SearchStepLimit = mSearchStepLimit
+    End Property
+
+    ' InitializeRegex reseeds regex.stepsLimit from the engine default on every
+    ' compile, so an override has to be written back AFTER it. EnsureCompiled calls
+    ' this immediately after InitializeRegex for that reason - the order matters.
+    Private Sub ApplySearchStepLimit()
+        If mSearchStepLimit > 0 Then regex.stepsLimit = mSearchStepLimit
+    End Sub
+    '<<< PATCH 26
 
     ' Compiles the current Pattern once per Pattern/IgnoreCase change, trapping any engine
     ' error so validity can be queried without raising. Never raises. IgnoreCase is the only
@@ -304,6 +303,7 @@ Public Class RegExp
 
         On Error GoTo CompileFailed
         StaticRegex.InitializeRegex regex, mPattern, mIgnoreCase
+        ApplySearchStepLimit                     '>>> PATCH 26: must follow InitializeRegex
         CacheCaptureInfo
         On Error GoTo 0
         mIsValid = True
@@ -317,6 +317,14 @@ CompileFailed:
         ' entry point raises on Not mIsValid before touching it, so this keeps that true
         mNamedCount = 0
         mNumCaptures = 0
+        '>>> PATCH 23: IsValid/LastError/LastErrorNumber are documented not to raise,
+        ' and they do not - but Err is only reset by Exit Sub or Resume from inside a
+        ' handler, and this one falls off End Sub. The engine's error was therefore
+        ' still sitting in Err when the property returned, which reads as a failure to
+        ' any caller running On Error Resume Next. The number is kept in
+        ' mLastErrNumber, so clearing it here loses nothing.
+        Err.Clear
+        '<<< PATCH 23
     End Sub
 
     ' Walks the bytecode identifier map once per compiled Pattern and caches the
@@ -405,6 +413,16 @@ CompileFailed:
             DescribeRegexError = "Invalid capture-group name. Names must start with a letter or underscore, then contain only letters, digits, or underscores (and must not start with a digit)."
         Case 14  ' INVALID_MODIFIER
             DescribeRegexError = "Invalid inline modifier: a malformed or repeated '(?i)'/'(?m)'/'(?s)' flag group."
+        Case 15  ' INVALID_BACKREFERENCE
+            ' PATCH 25 made this unreachable - a '\<digits>' escape naming a group
+            ' that is not open becomes a legacy octal escape rather than an error.
+            ' Described anyway: a guard that fires with a vague message is no guard.
+            DescribeRegexError = "Backreference to a capture group that does not exist."
+        Case 16  ' SEARCH_ABANDONED
+            ' Raised during MATCHING, not compiling, so it never reaches here - it
+            ' propagates straight out of Test/Execute/Replace/Split carrying the
+            ' engine's own message, which names the budget and a suggested limit.
+            DescribeRegexError = "The search was abandoned on its step budget. Raise SearchStepLimit, shorten the input, or simplify the pattern."
         Case 20  ' INTERNAL_LOGIC_ERR
             DescribeRegexError = "Internal engine error (this should not happen — please report the pattern)."
         Case 30  ' INVALID_FLAG_ERR
@@ -811,3 +829,4 @@ Private Class MatchCollectionEnum
     End Function
 
 End Class
+

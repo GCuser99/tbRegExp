@@ -118,21 +118,33 @@ Private Module StaticRegex
 ' PATCH 18 - Make a step-budget giveup visible. DfsRunThreads returns -1 both
 '   when it finds no match and when it exhausts stepsLimit, so a truncated
 '   result was indistinguishable from an honest no-match and nothing was
-'   raised. A module-level flag now records it; the wrapper clears it before
-'   each search and exposes it as RegExp.StepsLimitHit. Also exposes the
-'   existing per-pattern RegexTy.stepsLimit field as RegExp.StepsLimit - it was
-'   always settable in the engine, just never surfaced.
+'   raised. A module-level flag recorded it, which the wrapper surfaced as
+'   RegExp.SearchAborted. SUPERSEDED BY PATCH 26: exhausting the budget raises,
+'   so the flag and that property are both gone - there is no longer an
+'   unjustified return value for a caller to detect.
 '   MEASURED on a 5000-char run of 'a': 'a*' matches 3331 characters from
 '   position 1669 instead of 5000 from 0, and '^.*$' does not match at all.
 '   The cost is in the restarts, not the budget: 'a*' over 9500 characters
 '   burns ~62M steps over ~6170 failed start positions (13s) to return a wrong
 '   answer, where a budget of ~30000 would succeed at position 0 in ~6ms.
 '
-' PATCH 19 - One step budget per SEARCH instead of one per start position, and
+' PATCH 19 - One step budget per MATCH ATTEMPT instead of one per start
+'   position, and
 '   scale it with the input. MEASURED: 'a*' over 9500 characters now returns the
 '   full 9500 in ~16ms, where it returned 3331 after 13s - about 800x faster AND
 '   correct. Budget = min(50000000, max(1000000, 5000 * inputLen)), or
-'   RegExp.StepsLimit when that is set.
+'   regex.stepsLimit when that field is set directly.
+'   KNOWN DEFECT: this budget is LINEAR in input length, but an ordinary
+'   backtracking pattern like '\d+x' does quadratic work, so the budget loses
+'   for large enough input whatever constant is chosen - '\d+x' over 5000
+'   digits gives up and reports no match. Raising the constant only moves the
+'   crossover. See stepBudgetScaling.twin; a real fix has to be shaped like n^2.
+'   PRECISELY: the counter resets in DfsMatchFrom, which MatchNext calls once
+'   per match, so a Global Execute gets a fresh budget for each match it finds
+'   plus one for the final failing scan. Every individual attempt is bounded,
+'   which is what stops a hang; the TOTAL for a call is not. In practice each
+'   successful match is cheap and the expensive one is the final scan, so the
+'   total is about one budget - but "one budget per search" would be wrong.
 '   Neither half works alone: a global budget at the old 10000 returns NO match
 '   where it used to return a short one, and a budget that only scales breaks
 '   'a{100}b' with a late match. The floor keeps short pathological patterns
@@ -148,6 +160,77 @@ Private Module StaticRegex
 '   half - ~18 reallocations and ~47K characters copied for a 16K result), and
 '   skip the between-matches Mid$ when matches are adjacent, which was allocating
 '   an empty BSTR on nearly every match for a dense pattern.
+'
+' PATCH 22 - Reject a quantifier whose maximum is below its minimum. ES2015
+'   21.2.1 makes that a SyntaxError, and nothing checked it, so 'a{2,1}'
+'   compiled clean - IsValid True, LastErrorNumber 0 - and then handed the
+'   matcher a quantifier it cannot execute, reaching the InternalError label
+'   whose bare 'Err.Raise 3000' reads to the caller as "The specified print
+'   monitor is unknown". Same shape as PATCH 16: valid at compile, fatal at
+'   match. Found by the tbRegExp test suite in tB's docs (9 of its 15
+'   failures were this one line).
+'   Distinct from a brace that starts no quantifier at all ('a{x}', '\p{L}'),
+'   which is literal text under Annex B and is still a gap - see TODO below.
+'
+' PATCH 24 - '$~' in a replacement string is copied as text, as VBScript does,
+'   instead of being silently dropped. The dropped-'$~' arm was an extension
+'   with no stated purpose; removing it lets '$~' fall through to the
+'   not-a-digit path that already makes '$x' literal.
+'
+' PATCH 25 - A '\<digits>' escape is a backreference only if that group has
+'   already been OPENED - its '(' seen - at that point in the pattern, and is a
+'   legacy octal escape otherwise. PATCH 17 tested against the TOTAL group
+'   count instead, which agrees whenever the number exceeds the total and
+'   differs exactly when the group exists but comes later: '\1(a)' matched "a"
+'   where VBScript matches ChrW(1) & "a".
+'   MEASURED against VBScript.RegExp, four probes:
+'     ^(a)\2(b)$   matches "a" & ChrW(2) & "b", NOT "ab"   -> octal, not backref
+'     ^(\1a)$      matches "a"                            -> backref, matches empty
+'     ^(a)?\1$     matches ""                             -> NOT about participation
+'     ^(?:(a)|b)\1$ matches "b"                           -> likewise
+'   The third and fourth rule out "an unparticipated group fails", which was the
+'   first fix proposed and would have broken both of them.
+'   Consequence: "opened so far" is a running count a single pass already has,
+'   so PATCH 17's second pass solved a harder problem than VBScript poses. That
+'   machinery, and PATCH 16's REGEX_ERR_INVALID_BACKREFERENCE, are now both
+'   unreachable. Left in place for this commit so the rule change can be
+'   verified alone; removal is the next step.
+'
+' PATCH 26 - The step budget is QUADRATIC in input length, and exhausting it
+'   RAISES instead of returning a value.
+'   MEASURED: '\d+x' over n digits with no 'x' costs ~2.25*n^2 steps (implied
+'   exponent 1.93 over n = 1000..2000; once budget-limited the time went
+'   linear, 1.99 across a 2x step in n, confirming the other half). PATCH 19's
+'   budget was linear in n, so it lost for large enough n whatever constant was
+'   chosen - only the crossover moved, and it sat between n = 2000 and 2500.
+'   Budget = min(100000000, max(1000000, 10 * n * n)), or regex.stepsLimit when
+'   set. The old 50000000 cap was itself below the ~56M that n = 5000 needs, so
+'   tuning the per-char constant alone could never have fixed this.
+'
+'   Raising, rather than returning "no match", because the budget running out
+'   means the answer is UNKNOWN. '(a+)+b' over 30 'a' used to return False and
+'   that was correct - there is no 'b' - but the search had not established it;
+'   it ran out of budget and guessed. The message carries the budget, the input
+'   length, a suggested SearchStepLimit of 3*n^2 and that figure as a MULTIPLE
+'   of the work already done, so the caller converts it to wall-clock from the
+'   wait they just sat through without this code guessing at machine speed.
+'   Removes mStepsLimitHit, ClearStepsLimitHit, StepsLimitHit and the wrapper's
+'   SearchAborted: with nothing silently returned there is nothing to query.
+'
+' PATCH 27 - A '{' that starts no valid quantifier is literal text (ES2015
+'   Annex B ExtendedPatternCharacter), completing what PATCH 07 did for '}'
+'   and ']'. 'a{', 'a{x}', '\p{L}', 'a{}' and 'a{1,2,3}' now compile and match
+'   literally, and 'a{,2}' is text rather than being read as '{0,2}' - the comma
+'   branch did not require a digit before the comma, so 'a{,2}' matched "aa".
+'   '}' only needed its raise deleted, because it falls through to
+'   PatternCharacter; '{' has to be PARSED before we know what it is, so the
+'   quantifier parse moved into LexerTryParseQuantifier, which returns False
+'   instead of raising when the text is not a quantifier, and the caller rewinds
+'   on (iCurrent, currentCharacter) - the same shape PATCH 17 uses for octal.
+'   The distinction that matters: braces that DO form a quantifier whose numbers
+'   are unusable still RAISE ('a{2,1}' per PATCH 22, 'a{99999999999}'). Making
+'   everything literal would swallow 'a{2,1}' as text; making everything raise
+'   would stop '\p{L}' compiling. tB's suite pins both sides.
 ' ==========================================================================
 Option Private Module
 Option Explicit
@@ -204,6 +287,7 @@ Private Enum RegexErrType
     REGEX_ERR_INVALID_IDENTIFIER = REGEX_ERR + 13
     REGEX_ERR_INVALID_MODIFIER = REGEX_ERR + 14
     REGEX_ERR_INVALID_BACKREFERENCE = REGEX_ERR + 15    '<<< PATCH 16
+    REGEX_ERR_SEARCH_ABANDONED = REGEX_ERR + 16         '<<< PATCH 26
         
     REGEX_ERR_INTERNAL_LOGIC_ERR = REGEX_ERR + 20
         
@@ -394,6 +478,12 @@ Private Type LexerContext
     currentCharacter As Long
     identifierTree As IdentifierTreeTy
     nCapturesKnown As Long   '>>> PATCH 17: -1 until the group count is known
+    '>>> PATCH 25: capturing groups whose '(' has been seen so far. The lexer
+    ' runs strictly left to right - ParseReToken is called once per token from
+    ' one loop, with no peek or pushback - so at any escape this is exactly the
+    ' set of group numbers VBScript will accept as backreferences.
+    nCapturesOpened As Long
+    '<<< PATCH 25
 End Type
 
 Private Type ReToken
@@ -509,9 +599,22 @@ Private Enum DfsMatcherSharedConstant
     ' 10000 was per START POSITION, which is what made a long match impossible
     ' and a failing scan quadratic.
     DEFAULT_STEPS_LIMIT = 0
-    STEPS_BUDGET_PER_CHAR = 5000      ' vs the ~3 steps/char a simple repeat costs
-    STEPS_BUDGET_FLOOR = 1000000      ' short inputs still get ~0.2s before giving up
-    STEPS_BUDGET_CAP = 50000000       ' ~10s: bounds a pathological pattern on big input
+    '>>> PATCH 26: the budget is QUADRATIC in input length, because ordinary
+    ' backtracking is. MEASURED: '\d+x' over n digits with no 'x' costs
+    ' ~2.25*n^2 steps - '\d+' eats to the end from every start position and
+    ' backtracks the whole way. A budget linear in n therefore loses for large
+    ' enough n whatever constant is chosen; only the crossover moves.
+    STEPS_BUDGET_PER_CHAR_SQ = 10     ' vs the ~2.25 measured: must exceed the
+                                      ' WORST per-comparison cost, not the mean,
+                                      ' so the cap stays the only binding term
+    STEPS_BUDGET_FLOOR = 1000000      ' governs below ~316 chars; ~0.3s
+    STEPS_BUDGET_CAP = 100000000      ' ~25s. Past about half a minute the caller
+                                      ' has already killed the host, so a larger
+                                      ' cap buys unexplained freezes, not answers
+    '<<< PATCH 26
+    ' The crossover length (~3162 for the values above) is NOT a constant here.
+    ' DfsMatchFrom derives it from CAP and PER_CHAR_SQ with integer division, so
+    ' changing either of those cannot leave a stale hand-figured length behind.
     '<<< PATCH 19
 End Enum
 
@@ -2230,7 +2333,8 @@ Private Sub ParseReToken(ByRef lexCtx As LexerContext, ByRef outToken As ReToken
     Dim x As Long
         
     ' used only locally
-    Dim i As Long, val1 As Long, val2 As Long, digits As Long, tmp As Long
+    Dim i As Long, val1 As Long, val2 As Long, tmp As Long   ' digits moved into
+                                                             ' LexerTryParseQuantifier
     Dim x0 As Long, savedI As Long, savedC As Long      '<<< PATCH 17
         
     ' Todo: remove
@@ -2287,58 +2391,35 @@ Private Sub ParseReToken(ByRef lexCtx As LexerContext, ByRef outToken As ReToken
             End If
         End With
     Case UNICODE_LCURLY
-        ' Production allows 'DecimalDigits', including leading zeroes
-        val1 = 0
-        val2 = RE_QUANTIFIER_INFINITE
-            
-        digits = 0
-
-        Do
-            x = Advance(lexCtx)
-            If (x >= UNICODE_0) And (x <= UNICODE_9) Then
-                digits = digits + 1
-                ' Be careful to prevent overflow
-                If val1 > LONG_MAX_DIV_10 Then Err.Raise REGEX_ERR_INVALID_QUANTIFIER
-                val1 = val1 * 10
-                tmp = x - UNICODE_0
-                If LONG_MAX - val1 < tmp Then Err.Raise REGEX_ERR_INVALID_QUANTIFIER
-                val1 = val1 + tmp
-            ElseIf x = UNICODE_COMMA Then
-                If val2 <> RE_QUANTIFIER_INFINITE Then Err.Raise REGEX_ERR_INVALID_QUANTIFIER
-                If lexCtx.currentCharacter = UNICODE_RCURLY Then
-                    ' form: { DecimalDigits , }, val1 = min count
-                    If digits = 0 Then Err.Raise REGEX_ERR_INVALID_QUANTIFIER
-                    outToken.qmin = val1
-                    outToken.qmax = RE_QUANTIFIER_INFINITE
-                    Advance lexCtx
-                    Exit Do
-                End If
-                val2 = val1
-                val1 = 0
-                digits = 0 ' not strictly necessary because of lookahead '}' above
-            ElseIf x = UNICODE_RCURLY Then
-                If digits = 0 Then Err.Raise REGEX_ERR_INVALID_QUANTIFIER
-                If val2 <> RE_QUANTIFIER_INFINITE Then
-                    ' val2 = min count, val1 = max count
-                    outToken.qmin = val2
-                    outToken.qmax = val1
-                Else
-                    ' val1 = count
-                    outToken.qmin = val1
-                    outToken.qmax = val1
-                End If
-                Exit Do
-            Else
-                Err.Raise REGEX_ERR_INVALID_QUANTIFIER
-            End If
-        Loop
-        If lexCtx.currentCharacter = UNICODE_QUESTION Then
-            outToken.greedy = False
-            Advance lexCtx
-        Else
-            outToken.greedy = True
+        '>>> PATCH 27: a '{' that starts no valid quantifier is literal text
+        ' (ES2015 Annex B ExtendedPatternCharacter), which is the treatment
+        ' PATCH 07 already gave '}' and ']'. '}' was easy - delete its raise and
+        ' let it fall through to PatternCharacter - but '{' has to be PARSED
+        ' before we know, so the parse must be able to fail without raising and
+        ' the lexer rewinds when it does. Same save-and-rewind shape as PATCH 17.
+        '
+        ' Two outcomes stay deliberately distinct, and conflating them breaks one
+        ' side or the other:
+        '   not a quantifier at all - 'a{', 'a{x}', '\p{L}', 'a{,2}', 'a{1,2,3}'
+        '       -> rewind and emit '{' as a character
+        '   a quantifier that cannot be used - 'a{2,1}', 'a{99999999999}'
+        '       -> RAISE, because the braces DID form a quantifier and its
+        '          numbers are wrong. See PATCH 22.
+        ' Make everything literal and 'a{2,1}' silently becomes text; make
+        ' everything raise and '\p{L}' stops compiling. tB's suite pins both.
+        savedI = lexCtx.iCurrent
+        savedC = lexCtx.currentCharacter
+        If Not LexerTryParseQuantifier(lexCtx, outToken) Then
+            lexCtx.iCurrent = savedI
+            lexCtx.currentCharacter = savedC
+            ' Re-zero rather than just overwriting .t/.num: nothing writes
+            ' qmin/qmax before a failure today, but a future edit might, and a
+            ' character token carrying stale counts is a hard bug to find.
+            outToken = emptyReToken
+            outToken.t = RETOK_ATOM_CHAR
+            outToken.num = UNICODE_LCURLY
         End If
-        outToken.t = RETOK_QUANTIFIER
+        '<<< PATCH 27
     Case UNICODE_PERIOD
         outToken.t = RETOK_ATOM_PERIOD
     Case UNICODE_BACKSLASH
@@ -2492,8 +2573,24 @@ EscapeDigit:
                 Advance lexCtx
                 i = i + 1
             Loop
-            If lexCtx.nCapturesKnown >= 0 And val1 > lexCtx.nCapturesKnown Then
-                ' No such group, so Annex B rereads this as a character escape.
+            '>>> PATCH 25: the test is whether group val1 has been OPENED here,
+            ' not whether the pattern declares it anywhere. MEASURED against
+            ' VBScript.RegExp: '^(a)\2(b)$' matches "a" & ChrW(2) & "b" and NOT
+            ' "ab", so '\2' is octal even though group 2 is declared later;
+            ' '^(\1a)$' matches "a", so '\1' inside its own open group is a real
+            ' backreference to a group that has not participated, matching empty.
+            ' A group is "opened" at its '(', which is why nCapturesOpened is
+            ' incremented when the token is emitted rather than at its ')'.
+            '
+            ' This replaces PATCH 17's test against the TOTAL count. The two
+            ' agree whenever val1 exceeds the total, and differ exactly when the
+            ' group exists but comes later - which was the whole divergence.
+            ' Because opened <= total always, maxBackref can no longer exceed
+            ' nCaptures, so the pass-2 reparse below never triggers and the
+            ' two-pass machinery is now inert. It is left in place for one
+            ' commit so this change can be verified on its own.
+            If val1 > lexCtx.nCapturesOpened Then
+                ' No such group yet, so Annex B rereads this as a character escape.
                 ' Rewind to just after the first digit: the octal form takes at
                 ' most three octal digits and stops at 255, so '\189' is octal
                 ' \1 followed by the literal text '89'. That is why the decimal
@@ -2553,6 +2650,7 @@ EndEscapeHandling:
                             If Not IsIdentifierChar(x) Then Err.Raise REGEX_ERR_INVALID_IDENTIFIER
                         Loop
                         outToken.t = RETOK_ATOM_START_CAPTURE_GROUP
+                        lexCtx.nCapturesOpened = lexCtx.nCapturesOpened + 1   '>>> PATCH 25
                         With slp
                             .start = val2: .Length = lexCtx.iCurrent - 1 - val2
                         End With
@@ -2627,6 +2725,7 @@ EndModifierHandling:
             ' (
             outToken.t = RETOK_ATOM_START_CAPTURE_GROUP
             outToken.num = -1
+            lexCtx.nCapturesOpened = lexCtx.nCapturesOpened + 1   '>>> PATCH 25
         End If
     Case UNICODE_RPAREN
         outToken.t = RETOK_ATOM_END
@@ -2925,6 +3024,94 @@ Private Function Unionize(ByRef ary() As Long, ByVal b As Long, ByVal t As Long)
     ary(j) = lower: ary(j + 1) = upper
     Unionize = j
 End Function
+
+'>>> PATCH 27: parse '{n}', '{n,}' or '{n,m}', the '{' having already been
+' consumed. Returns False when the text is not a quantifier at all, leaving the
+' caller to rewind and treat the '{' as a literal character.
+'
+' It still RAISES for braces that DO form a quantifier whose numbers are
+' unusable - a maximum below the minimum, or a count too large to represent -
+' because that is a malformed pattern rather than text. Every Exit Function
+' below is a "this was never a quantifier" exit; every Err.Raise is a "this is a
+' quantifier and it is wrong" exit. Keeping those two straight is the whole job.
+'
+' Nothing writes outToken before an Exit Function, so a failure cannot leave
+' half a quantifier behind; the caller re-zeroes anyway.
+Private Function LexerTryParseQuantifier(ByRef lexCtx As LexerContext, ByRef outToken As ReToken) As Boolean
+    Dim val1 As Long, val2 As Long, digits As Long, x As Long, tmp As Long
+
+    ' Production allows 'DecimalDigits', including leading zeroes
+    val1 = 0
+    val2 = RE_QUANTIFIER_INFINITE
+    digits = 0
+
+    Do
+        x = Advance(lexCtx)
+        If (x >= UNICODE_0) And (x <= UNICODE_9) Then
+            digits = digits + 1
+            ' Be careful to prevent overflow. A count too large to hold is a
+            ' malformed quantifier, not literal text - '{99999999999}' is
+            ' unmistakably meant as a quantifier.
+            If val1 > LONG_MAX_DIV_10 Then Err.Raise REGEX_ERR_INVALID_QUANTIFIER
+            val1 = val1 * 10
+            tmp = x - UNICODE_0
+            If LONG_MAX - val1 < tmp Then Err.Raise REGEX_ERR_INVALID_QUANTIFIER
+            val1 = val1 + tmp
+        ElseIf x = UNICODE_COMMA Then
+            ' '{,2}' - ES requires DecimalDigits before the comma, so this is
+            ' text. It used to fall through and be read as '{0,2}', which is why
+            ' 'a{,2}' matched "aa".
+            If digits = 0 Then Exit Function
+            ' a second comma, '{1,2,3}' - text
+            If val2 <> RE_QUANTIFIER_INFINITE Then Exit Function
+            If lexCtx.currentCharacter = UNICODE_RCURLY Then
+                ' form: { DecimalDigits , }, val1 = min count
+                outToken.qmin = val1
+                outToken.qmax = RE_QUANTIFIER_INFINITE
+                Advance lexCtx
+                Exit Do
+            End If
+            val2 = val1
+            val1 = 0
+            digits = 0      ' now load-bearing: the second number is counted here
+        ElseIf x = UNICODE_RCURLY Then
+            If digits = 0 Then Exit Function        ' '{}' - text
+            If val2 <> RE_QUANTIFIER_INFINITE Then
+                ' val2 = min count, val1 = max count
+                '>>> PATCH 22: ES2015 21.2.1 makes a finite max below min a
+                ' SyntaxError. Nothing checked it, so a{2,1} compiled clean -
+                ' IsValid True, LastErrorNumber 0 - and then handed the matcher a
+                ' quantifier it cannot execute, reaching sihlfall's InternalError
+                ' label whose bare "Err.Raise 3000" surfaces to the caller as
+                ' "The specified print monitor is unknown".
+                If val1 < val2 Then Err.Raise REGEX_ERR_INVALID_QUANTIFIER
+                '<<< PATCH 22
+                outToken.qmin = val2
+                outToken.qmax = val1
+            Else
+                ' val1 = count
+                outToken.qmin = val1
+                outToken.qmax = val1
+            End If
+            Exit Do
+        Else
+            ' Anything else is not a quantifier: a letter ('{x}', '\p{L}'), a
+            ' space, or the end of the pattern ('a{'). Advance returns
+            ' LEXER_ENDOFINPUT for the last of those, which lands here too.
+            Exit Function
+        End If
+    Loop
+
+    If lexCtx.currentCharacter = UNICODE_QUESTION Then
+        outToken.greedy = False
+        Advance lexCtx
+    Else
+        outToken.greedy = True
+    End If
+    outToken.t = RETOK_QUANTIFIER
+    LexerTryParseQuantifier = True
+End Function
+'<<< PATCH 27
 
 Private Function LexerParseEscapeX(ByRef lexCtx As LexerContext) As Long
     Dim dig As Long, escval As Long, x As Long
@@ -3557,12 +3744,20 @@ ContinueLoop:
             ' this point - every '(' in the pattern has been seen.
             '
             ' NOTE VBScript instead REINTERPRETS an out-of-range backreference as
-            ' a legacy octal escape, so '\101' matches 'A' there. Doing that needs
-            ' the group count BEFORE the digits are lexed, which a single-pass
-            ' lexer cannot provide, and the digit string is gone by now (the
-            ' lexer has reduced it to a decimal number, so '\189' can no longer
-            ' be split into octal \1 plus literal '89'). Rejecting is the honest
-            ' half: it makes IsValid tell the truth at Pattern-set time.
+            ' a legacy octal escape, so '\101' matches 'A' there.
+            '
+            '>>> PATCH 25 corrects what this comment used to claim. It said that
+            ' doing so needs the group count BEFORE the digits are lexed, which a
+            ' single-pass lexer cannot provide - hence PATCH 17's second pass.
+            ' That was based on assuming VBScript tests against the TOTAL number
+            ' of groups. It does not: it tests whether the group has been OPENED
+            ' at that point, which a single left-to-right pass has for free.
+            ' The harder problem was never the one VBScript poses.
+            '
+            ' With PATCH 25 in the lexer, maxBackref <= nCaptures always, so
+            ' neither branch below can be reached. Kept as a guard rather than
+            ' deleted, and the pass machinery with it, until this is verified.
+            '<<< PATCH 25
             If maxBackref > nCaptures Then
                 '>>> PATCH 17: pass 1 asks for a re-lex; pass 2 must not need one
                 If lex.nCapturesKnown < 0 Then
@@ -3718,20 +3913,33 @@ Private Function DfsMatchFrom( _
     fcKind = ComputeFirstChar(bytecode, fcChar, fcRangesPc, fcIFlag)
     '<<< PATCH 02
 
-    '>>> PATCH 19: work out the budget for this whole search.
-    ' stepsLimit > 0 is an explicit RegExp.StepsLimit; 0 means scale it. The cap
-    ' is reached at 10000 characters (50000000 \ 5000), so the multiply below
-    ' cannot overflow a Long.
+    '>>> PATCH 19 / 26: work out the budget for this whole search.
+    ' stepsLimit > 0 is an explicit RegExp.SearchStepLimit; 0 means scale it with
+    ' the square of the input length.
+    '
+    ' The cap test is written as a DIVISION so that it derives the crossover
+    ' from the two constants instead of restating it. "n > (CAP \ PER) \ n" is
+    ' "n * n > CAP \ PER", i.e. PER * n * n > CAP, but computed without ever
+    ' forming the product - so changing the cap or the coefficient cannot leave
+    ' a hand-figured length constant behind, and the multiply on the Else branch
+    ' is reached only when it is known to fit. (A Long would not actually
+    ' overflow until n ~ 14600 against a crossover of 3162, so this guards the
+    ' invariant rather than today's arithmetic.) 'And' does not short-circuit in
+    ' tB, so a zero length is handled on its own branch or the division by n
+    ' would be evaluated anyway.
     mStepsUsed = 0
+    mStepsInputLen = Len(inputStr)      ' kept for the abandonment message
     If stepsLimit > 0 Then
         mStepsBudget = stepsLimit
-    ElseIf Len(inputStr) > STEPS_BUDGET_CAP \ STEPS_BUDGET_PER_CHAR Then
+    ElseIf mStepsInputLen = 0 Then
+        mStepsBudget = STEPS_BUDGET_FLOOR
+    ElseIf mStepsInputLen > (STEPS_BUDGET_CAP \ STEPS_BUDGET_PER_CHAR_SQ) \ mStepsInputLen Then
         mStepsBudget = STEPS_BUDGET_CAP
     Else
-        mStepsBudget = STEPS_BUDGET_PER_CHAR * Len(inputStr)
+        mStepsBudget = STEPS_BUDGET_PER_CHAR_SQ * mStepsInputLen * mStepsInputLen
         If mStepsBudget < STEPS_BUDGET_FLOOR Then mStepsBudget = STEPS_BUDGET_FLOOR
     End If
-    '<<< PATCH 19
+    '<<< PATCH 19 / 26
 
     Do While sp <= Len(inputStr)
         '>>> PATCH 02: skip positions that cannot begin a match
@@ -3772,24 +3980,69 @@ End Function
 Private mInputChars() As Integer   ' 0-based UTF-16 code units of the current haystack
 Private mInputLen As Long          ' == Len(haystack); Get/Peek bound-check against this
 
-'>>> PATCH 18: did the most recent search give up on its step budget?
+'>>> PATCH 19 / 26: budget accounting for the current search.
 ' Module-level rather than threaded through DfsRunThreads/DfsMatchFrom/
 ' DfsMatch/MatchNext, which would be four signature changes. The engine is
 ' already single-search-at-a-time because of PATCH 01's mInputChars, so this
 ' adds no new restriction: nested regex operations were never supported.
-' Callers clear it before a search and read it after.
-Private mStepsLimitHit As Boolean
-Private mStepsUsed As Long          '>>> PATCH 19: steps spent by the current search
-Private mStepsBudget As Long        '>>> PATCH 19: total allowed for it
+'
+' PATCH 26 removed the mStepsLimitHit flag and its ClearStepsLimitHit /
+' StepsLimitHit accessors. Exhausting the budget now RAISES, so there is no
+' silently-returned value left to interrogate: the flag existed only because
+' the engine used to answer a question it had not actually settled.
+Private mStepsUsed As Long          ' steps spent by the current search
+Private mStepsBudget As Long        ' total allowed for it
+Private mStepsInputLen As Long      ' input length, for the message
+'<<< PATCH 19 / 26
 
-Public Sub ClearStepsLimitHit()
-    mStepsLimitHit = False
+'>>> PATCH 26: the budget ran out, so whether the pattern matches is UNKNOWN.
+' Raising is the only honest report. Returning "no match" asserts something
+' the search never established - note that '(a+)+b' over 30 'a' used to return
+' False and that was *correct*, because there is no 'b', but we had not
+' determined it; we ran out of budget and guessed. Being right by luck is not
+' a behaviour to keep, still less to write tests against.
+'
+' The suggested limit is 3*n^2 against the ~2.25*n^2 measured for an ordinary
+' quadratic pattern, and it is given BOTH absolutely and as a multiple of the
+' work already done. The ratio is the useful half: the caller has just sat
+' through the abandoned search, so a multiple converts to wall-clock in their
+' head and this code never has to guess at machine speed.
+Private Sub RaiseSearchAbandoned()
+    Const LONG_MAX As Double = 2147483647#
+    Dim wanted As Double, msg As String
+
+    wanted = 3# * CDbl(mStepsInputLen) * CDbl(mStepsInputLen)
+
+    msg = "The regular expression search was abandoned after " & _
+          Format$(mStepsBudget, "#,##0") & " steps on an input of " & _
+          Format$(mStepsInputLen, "#,##0") & " characters, so whether it matches" & _
+          " is not known. This pattern backtracks heavily at this length."
+
+    If wanted <= CDbl(mStepsBudget) Then
+        ' Already allowed more than a merely quadratic pattern would need, so
+        ' raising the limit again is not the answer.
+        msg = msg & " It was already allowed more than a quadratic pattern needs" & _
+              " here, so its cost grows faster than the square of the input and" & _
+              " no step limit will cover it. Simplify the pattern."
+    ElseIf wanted > LONG_MAX Then
+        msg = msg & " An input this long needs more steps than SearchStepLimit can" & _
+              " hold, so shorten the input or simplify the pattern."
+    Else
+        msg = msg & " A pattern like this typically needs about " & _
+              Format$(wanted, "#,##0") & " steps at this length - roughly " & _
+              Format$(wanted / CDbl(mStepsBudget), "0.#") & _
+              " times the work already done. Set SearchStepLimit to " & _
+              CStr(CLng(wanted)) & " to allow it. If that still fails, the" & _
+              " pattern's cost grows faster than the square of the input and no" & _
+              " limit will help."
+    End If
+
+    ' Source is the package, not the module: this reaches callers of RegExp far
+    ' more often than callers of StaticRegex, and "StaticRegex" would leak an
+    ' internal name into an error a wrapper user sees.
+    Err.Raise REGEX_ERR_SEARCH_ABANDONED, "tbRegExp", msg
 End Sub
-
-Public Function StepsLimitHit() As Boolean
-    StepsLimitHit = mStepsLimitHit
-End Function
-'<<< PATCH 18
+'<<< PATCH 26
 
 ' Decode the haystack once per matching session. Call at the top of every public
 ' entry that starts a match loop (or, for the MatchNext-driven loops, gated by
@@ -4123,11 +4376,7 @@ ContinueLoopSuccess:
             ' never finish, while a pattern that failed everywhere paid the full
             ' limit n times over. See the banner for the measurements.
             mStepsUsed = mStepsUsed + 1
-            If mStepsUsed >= mStepsBudget Then
-                mStepsLimitHit = True
-                DfsRunThreads = -1
-                Exit Function
-            End If
+            If mStepsUsed >= mStepsBudget Then RaiseSearchAbandoned
             '<<< PATCH 19
                 
             op = GetBc(bytecode, pc)
@@ -4483,7 +4732,6 @@ Private Sub ParseFormatString(ByRef parsedFormat As ArrayBuffer, ByRef formatStr
     Const UNICODE_DIGIT_9 As Long = 57
     Const UNICODE_LT As Long = 60
     Const UNICODE_BACKTICK As Long = 96
-    Const UNICODE_TILDE As Long = 126
 
     ' number of numbered capture groups in the pattern (same derivation as MatchNext)
     mCaps = (bytecode(BYTECODE_IDX_MAX_PROPER_CAPTURE_SLOT) + 1) \ 2 - 1
@@ -4534,9 +4782,10 @@ Private Sub ParseFormatString(ByRef parsedFormat As ArrayBuffer, ByRef formatStr
             Case UNICODE_BACKTICK
                 AppendLong parsedFormat, REPL_PREFIX
                 curPos = curPos + 1
-            Case UNICODE_TILDE
-                ' extension: dropped. Delete this arm for 100% VBScript parity.
-                curPos = curPos + 1
+            '>>> PATCH 24: the "$~ is dropped" arm removed. VBScript copies $~
+            ' as text, and $~ had no stated purpose, so falling through to
+            ' Case Else - not a digit, therefore literal - is the parity answer.
+            '<<< PATCH 24
             Case Else
                 If c < UNICODE_DIGIT_0 Or c > UNICODE_DIGIT_9 Then
                     isLiteral = True
