@@ -10,6 +10,8 @@ It is **pure twinBASIC**: no COM reference, no external DLL, no runtime dependen
 regular-expressions engine underneath is [sihlfall's vba-regex](https://github.com/sihlfall/vba-regex),
 an excellent ECMAScript-compatible matcher; this project is the compatibility wrapper around it.
 
+Comprehensive documentation for this tool is available at [tbRegExp Package](https://docs.twinbasic.com/tB/Packages/Contributed/tbRegExp/).
+
 ---
 
 ## Why this exists
